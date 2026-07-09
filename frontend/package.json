@@ -16,6 +16,8 @@
     "lucide-react": "^0.395.0"
   },
   "devDependencies": {
+    "@rolldown/binding-linux-x64-gnu": "1.1.4",
+    "@rolldown/binding-linux-x64-musl": "1.1.4",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
