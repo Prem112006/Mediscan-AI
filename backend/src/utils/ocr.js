@@ -51,9 +51,19 @@ const extractTextFromImage = async (imagePath) => {
     console.log(`Starting OCR on image: ${imagePath}`);
     
     // Determine the langPath for traineddata dynamically based on environment
-    const langPath = process.env.VERCEL 
-      ? path.join(process.cwd(), 'backend') 
-      : path.join(__dirname, '..', '..');
+    const getLangPath = () => {
+      // 1. Check process.cwd() (if running as Vercel Service, the service root is backend/)
+      if (fs.existsSync(path.join(process.cwd(), 'eng.traineddata'))) {
+        return process.cwd();
+      }
+      // 2. Check process.cwd()/backend (if running as monolithic root)
+      if (fs.existsSync(path.join(process.cwd(), 'backend', 'eng.traineddata'))) {
+        return path.join(process.cwd(), 'backend');
+      }
+      // 3. Fallback relative to this utility file
+      return path.join(__dirname, '..', '..');
+    };
+    const langPath = getLangPath();
 
     const result = await Tesseract.recognize(imagePath, 'eng', {
       langPath: langPath,
