@@ -13,6 +13,20 @@
       }
     }
   },
+  "experimentalServices": {
+    "frontend": {
+      "root": "frontend",
+      "framework": "vite"
+    },
+    "backend": {
+      "root": "backend",
+      "functions": {
+        "api/index.js": {
+          "includeFiles": "eng.traineddata"
+        }
+      }
+    }
+  },
   "rewrites": [
     {
       "source": "/api/:path*",
