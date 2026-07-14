@@ -1,4 +1,13 @@
 let API_URL = import.meta.env.VITE_API_URL || '/api';
+
+// Self-healing: If running on a production domain but VITE_API_URL points to localhost, ignore it and fall back to relative /api
+if (typeof window !== 'undefined' && 
+    window.location.hostname !== 'localhost' && 
+    window.location.hostname !== '127.0.0.1' && 
+    (API_URL.includes('localhost') || API_URL.includes('127.0.0.1'))) {
+  API_URL = '/api';
+}
+
 if (API_URL.startsWith('http') && !API_URL.endsWith('/api') && !API_URL.includes('/api/')) {
   API_URL = API_URL.replace(/\/$/, '') + '/api';
 }
