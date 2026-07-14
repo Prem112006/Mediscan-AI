@@ -1,6 +1,9 @@
 const mongoose = require('mongoose');
 const dns = require('dns');
 
+// Disable query buffering globally to prevent hanging on disconnected states
+mongoose.set('bufferCommands', false);
+
 // Use Google Public DNS to resolve MongoDB Atlas SRV records
 // (fixes ECONNREFUSED on networks that block SRV lookups)
 dns.setServers(['8.8.8.8', '8.8.4.4']);
@@ -12,6 +15,7 @@ const connectDB = async () => {
     await mongoose.connect(connString, {
       serverSelectionTimeoutMS: 3000,
       socketTimeoutMS: 45000,
+      bufferCommands: false,
     });
     console.log('MongoDB Connected successfully to database:', mongoose.connection.db.databaseName);
   } catch (error) {
