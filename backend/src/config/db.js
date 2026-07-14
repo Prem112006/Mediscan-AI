@@ -10,7 +10,7 @@ const connectDB = async () => {
     const connString = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/mediscan';
     console.log('Connecting to MongoDB...');
     await mongoose.connect(connString, {
-      serverSelectionTimeoutMS: 10000,
+      serverSelectionTimeoutMS: 3000,
       socketTimeoutMS: 45000,
     });
     console.log('MongoDB Connected successfully to database:', mongoose.connection.db.databaseName);
