@@ -1,4 +1,7 @@
-const API_URL = import.meta.env.VITE_API_URL || '/api';
+let API_URL = import.meta.env.VITE_API_URL || '/api';
+if (API_URL.startsWith('http') && !API_URL.endsWith('/api') && !API_URL.includes('/api/')) {
+  API_URL = API_URL.replace(/\/$/, '') + '/api';
+}
 
 /**
  * Helper to fetch with auth headers and automatic JSON parsing.
