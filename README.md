@@ -2,20 +2,6 @@
 
 This document details the environment configuration and Git branching workflow for development.
 
----
-
-## ⚙️ Environment Configuration
-
-Create a `.env` file in the root directory (or update the existing one) with the following variables:
-
-```env
-PORT=3000
-MONGODB_URI=your_mongodb_connection_string
-GOOGLE_CLIENT_ID=your_google_oauth_client_id
-GOOGLE_CLIENT_SECRET=your_google_oauth_client_secret
-```
-
----
 
 ## 🌿 Git & Pull Request Workflow
 
