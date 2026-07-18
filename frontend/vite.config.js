@@ -8,11 +8,22 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
-        changeOrigin: true
+        target: 'http://127.0.0.1:5000',
+        changeOrigin: true,
+        configure: (proxy, _options) => {
+          proxy.on('error', (err, _req, _res) => {
+            console.error('[Vite Proxy Error]:', err);
+          });
+          proxy.on('proxyReq', (proxyReq, req, _res) => {
+            console.log('[Vite Proxy Request]:', req.method, req.url);
+          });
+          proxy.on('proxyRes', (proxyRes, req, _res) => {
+            console.log('[Vite Proxy Response]:', proxyRes.statusCode, req.url);
+          });
+        }
       },
       '/uploads': {
-        target: 'http://localhost:5000',
+        target: 'http://127.0.0.1:5000',
         changeOrigin: true
       }
     }
