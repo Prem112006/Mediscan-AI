@@ -14,13 +14,16 @@ const isValidImage = (filePath) => {
     if (buffer.length < 4) return false;
 
     // Check magic numbers (hex representations)
-    const hex = buffer.toString('hex', 0, 4).toUpperCase();
+    const hex = buffer.toString('hex', 0, 12).toUpperCase();
     
     const isPNG = hex.startsWith('89504E47');
     const isJPEG = hex.startsWith('FFD8FF');
     const isGIF = hex.startsWith('47494638');
+    const isWebP = hex.startsWith('52494646') && hex.includes('57454250'); // RIFF .... WEBP
+    const isBMP = hex.startsWith('424D'); // BM
+    const isTIFF = hex.startsWith('49492A00') || hex.startsWith('4D4D002A');
     
-    return isPNG || isJPEG || isGIF;
+    return isPNG || isJPEG || isGIF || isWebP || isBMP || isTIFF;
   } catch (error) {
     console.error('Error reading file signature:', error);
     return false;

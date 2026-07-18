@@ -12,6 +12,222 @@ if (process.env.GEMINI_API_KEY) {
 }
 
 /**
+ * Validates and sanitizes all generated fields (Field Validation Engine).
+ * @param {object} data - Unvalidated parsed medical details.
+ * @returns {object} - Pure, validated, and formatted details.
+ */
+function validateAndCleanFields(data) {
+  // Helper to clean individual text fields
+  const cleanField = (val, fieldName) => {
+    if (!val || typeof val !== 'string') return 'Not Available';
+    let cleaned = val.trim();
+    
+    // Prohibited trailing values/labels leaking in (Field Purity)
+    const labelsToRemove = [
+      /contact\s*information/i,
+      /contact\s*info/i,
+      /contact/i,
+      /patient\s*id/i,
+      /date\s*of\s*birth/i,
+      /dob/i,
+      /physician\s*name/i,
+      /specialty/i,
+      /department/i,
+      /presenting\s*complaints/i,
+      /medical\s*history/i,
+      /family\s*history/i,
+      /lifestyle\s*information/i,
+      /recommendations/i,
+      /follow-up/i
+    ];
+    
+    for (const label of labelsToRemove) {
+      cleaned = cleaned.replace(label, '').trim();
+    }
+    
+    // Remove leading/trailing colons, hyphens, bullet points, or punctuation
+    cleaned = cleaned.replace(/^[:\-\s+*•«]+|[:\-\s+*•«]+$/g, '').trim();
+    
+    // If it's a doctor name that's just "Dr." or "Dr", mark not available
+    if (fieldName === 'doctorName') {
+      if (cleaned.toLowerCase() === 'dr' || cleaned.toLowerCase() === 'dr.') {
+        return 'Not Available';
+      }
+    }
+    
+    return cleaned || 'Not Available';
+  };
+
+  // Helper to clean array of clinical sentences (Section Purity & Cleaning)
+  const cleanSentenceArray = (arr) => {
+    if (!Array.isArray(arr)) return [];
+    
+    const seen = new Set();
+    const cleanedArr = [];
+    
+    for (const item of arr) {
+      if (!item || typeof item !== 'string') continue;
+      let s = item.trim();
+      
+      // Remove headers accidentally extracted (e.g. "Presenting Complaints: Ms.")
+      const headersToRemove = [
+        /^[Pp]resenting\s+[Cc]omplaints\s*[:\-]?\s*/,
+        /^[Mm]edical\s+[Hh]istory\s*[:\-]?\s*/,
+        /^[Ff]family\s+[Hh]istory\s*[:\-]?\s*/,
+        /^[Ll]ifestyle\s+[Ii]nformation\s*[:\-]?\s*/,
+        /^[Rr]ecommendations\s*[:\-]?\s*/,
+        /^[Dd]octor\s+[Nn]otes\s*[:\-]?\s*/,
+        /^[Cc]linical\s+[Ii]mpression\s*[:\-]?\s*/
+      ];
+      
+      for (const rx of headersToRemove) {
+        s = s.replace(rx, '').trim();
+      }
+      
+      // Skip if incomplete (has less than 2 words) or has major OCR garbage
+      const words = s.split(/\s+/).filter(Boolean);
+      if (words.length < 2) continue;
+      
+      // Skip if it contains placeholder or prohibited AI sentences
+      const lower = s.toLowerCase();
+      if (lower.includes("clinical warning thresholds") || lower.includes("correlation with baseline")) {
+        continue;
+      }
+      
+      // Deduplicate sentences
+      if (seen.has(lower)) continue;
+      seen.add(lower);
+      
+      cleanedArr.push(s);
+    }
+    
+    return cleanedArr;
+  };
+
+  const patient = data.patient || {};
+  const doctor = data.doctor || {};
+  
+  const validated = {
+    reportType: cleanField(data.reportType, 'reportType'),
+    patient: {
+      name: cleanField(patient.name, 'patientName'),
+      dob: cleanField(patient.dob, 'patientDob'),
+      age: cleanField(patient.age, 'patientAge'),
+      gender: cleanField(patient.gender, 'patientGender'),
+      patientId: cleanField(patient.patientId, 'patientId')
+    },
+    doctor: {
+      name: cleanField(doctor.name, 'doctorName'),
+      specialty: cleanField(doctor.specialty, 'doctorSpecialty'),
+      contact: cleanField(doctor.contact, 'doctorContact')
+    },
+    medicalHistory: cleanSentenceArray(data.medicalHistory),
+    symptoms: cleanSentenceArray(data.symptoms),
+    familyHistory: cleanSentenceArray(data.familyHistory),
+    lifestyleInformation: cleanSentenceArray(data.lifestyleInformation || data.lifestyle),
+    labResults: Array.isArray(data.labResults) ? data.labResults : [],
+    criticalAlerts: cleanSentenceArray(data.criticalAlerts),
+    doctorNotes: cleanSentenceArray(data.doctorNotes),
+    hasLabValues: !!data.hasLabValues,
+    hasCriticalFindings: !!data.hasCriticalFindings,
+    ocrConfidence: data.ocrConfidence || 95,
+    classificationConfidence: data.classificationConfidence || 95,
+    analysisConfidence: data.analysisConfidence || 95
+  };
+
+  // Map to legacy fields
+  validated.patientDetails = {
+    name: validated.patient.name,
+    dob: validated.patient.dob,
+    age: validated.patient.age,
+    gender: validated.patient.gender,
+    patientID: validated.patient.patientId,
+    reportDate: cleanField(data.patientDetails?.reportDate || data.reportDate || data.patient?.reportDate, 'reportDate')
+  };
+  validated.doctorDetails = {
+    physicianName: validated.doctor.name,
+    specialty: validated.doctor.specialty,
+    contact: validated.doctor.contact
+  };
+  validated.lifestyle = validated.lifestyleInformation;
+
+  // Clean Recommendations
+  let recsArr = cleanSentenceArray(
+    Array.isArray(data.recommendations) 
+      ? data.recommendations 
+      : (typeof data.recommendations === 'string' ? data.recommendations.split('\n') : [])
+  );
+  
+  if (recsArr.length === 0 || recsArr.some(r => r.toLowerCase().includes('no physician recommendations') || r.toLowerCase().includes('no clinical recommendations') || r.toLowerCase().includes('no recommendations'))) {
+    validated.recommendations = "No physician recommendations are present in the uploaded report.";
+  } else {
+    validated.recommendations = recsArr.join('\n');
+  }
+
+  // --- KEY FINDINGS GENERATION RULE ---
+  // Generate Key Findings by combining all clinical history, symptoms, family history, and lifestyle information
+  const dynamicKeyFindings = [];
+  validated.medicalHistory.forEach(item => {
+    dynamicKeyFindings.push({ test: item, value: 'Detected', status: 'Normal', referenceRange: 'N/A' });
+  });
+  validated.symptoms.forEach(item => {
+    dynamicKeyFindings.push({ test: item, value: 'Detected', status: 'Normal', referenceRange: 'N/A' });
+  });
+  validated.familyHistory.forEach(item => {
+    dynamicKeyFindings.push({ test: item, value: 'Detected', status: 'Normal', referenceRange: 'N/A' });
+  });
+  validated.lifestyleInformation.forEach(item => {
+    dynamicKeyFindings.push({ test: item, value: 'Detected', status: 'Normal', referenceRange: 'N/A' });
+  });
+
+  if (validated.hasLabValues && validated.labResults.length > 0) {
+    validated.keyFindings = validated.labResults.map(r => ({
+      test: r.test,
+      value: r.value + (r.unit ? ' ' + r.unit : ''),
+      referenceRange: r.referenceRange || 'N/A',
+      status: r.status || 'Normal'
+    }));
+  } else {
+    validated.keyFindings = dynamicKeyFindings.length > 0 ? dynamicKeyFindings : [{
+      test: 'No specific findings were detected in the uploaded report.',
+      value: 'N/A',
+      referenceRange: 'N/A',
+      status: 'Normal'
+    }];
+  }
+
+  // Highlighted insights
+  if (validated.criticalAlerts.length > 0 && !validated.criticalAlerts[0]?.toLowerCase()?.includes('no critical alerts')) {
+    validated.highlightedInsights = validated.criticalAlerts.map(alert => ({
+      type: 'danger',
+      message: alert
+    }));
+  } else {
+    validated.highlightedInsights = [{ type: 'info', message: 'No critical alerts detected.' }];
+  }
+
+  // Build Executive Summary
+  let summary = `Document classification: ${validated.reportType}.`;
+  if (validated.patient.name !== 'Not Available') {
+    summary += ` The record pertains to patient ${validated.patient.name}.`;
+  }
+  if (validated.patient.age !== 'Not Available') {
+    summary += ` Age: ${validated.patient.age}.`;
+  }
+  if (validated.hasLabValues) {
+    summary += ` Laboratory parameters present: ${validated.labResults.map(r => `${r.test} (${r.value} ${r.unit || ''})`).join(', ')}.`;
+  } else {
+    summary += ` No laboratory test values are present in this document.`;
+  }
+  if (validated.doctorNotes.length > 0) {
+    summary += ` Extracted physician remarks: ${validated.doctorNotes.join(' ')}`;
+  }
+  validated.summary = summary;
+
+  return validated;
+}
+
+/**
  * Parses raw OCR text of a medicine label using Gemini (or falls back to mock logic).
  * @param {string} rawOcrText - The text parsed from the medicine label.
  * @returns {Promise<object>} - Structured medicine details.
@@ -65,35 +281,114 @@ const analyzeMedicineLabel = async (rawOcrText) => {
  * @returns {Promise<object>} - Structured medical report analysis.
  */
 const analyzeMedicalReport = async (rawReportText) => {
+  let result = null;
+
   if (aiInstance) {
     try {
       console.log('Sending medical report text to Gemini API...');
       const prompt = `
-        You are an expert physician AI. Analyze the following medical lab report text and extract a clinical summary, key test results, highlighted insights, and warnings/disclaimers.
-        Extract the details in JSON format. Do not include markdown formatting in your response.
-        
-        The JSON must follow this schema:
+        You are an AI Medical Report Analyzer for MediScan AI.
+
+        Your job is to act strictly as an INFORMATION EXTRACTION SYSTEM. You are NOT a diagnostic AI, a treatment recommendation system, or a symptom interpretation system.
+
+        ==================================================
+        OCR PROCESSING & RECONSTRUCTION (STAGE 2)
+        ==================================================
+        Never use OCR line breaks to determine section boundaries. Always reconstruct the text into complete sentences before performing analysis. Semantic understanding must take priority over OCR formatting.
+        Extract Patient Name (ONLY the name), Date of Birth (ONLY the date, e.g. 01/15/1989), and Doctor Name (ONLY the full name, e.g. Dr. Alan Green).
+
+        ==================================================
+        SECTION MAPPING ENGINE
+        ==================================================
+        Understand the semantic meaning of each complete sentence and assign it to the correct section.
+        Do NOT split a single sentence across multiple sections.
+
+        ==================================================
+        CRITICAL RULE: NO GENERIC MEDICAL LANGUAGE
+        ==================================================
+        NEVER generate professional-sounding generic medical statements unless they are explicitly present in the uploaded report.
+        Prohibited outputs include but are not limited to:
+        - "No critical clinical warning thresholds were exceeded."
+        - "Further correlation with baseline symptoms is advised."
+        - "Management plan recommended based on our findings."
+        - "Clinical parameters are stable."
+        - "Additional monitoring is recommended."
+        - "Laboratory values are within normal limits."
+
+        If a statement is not explicitly written in the report, it MUST NOT appear in the output.
+
+        ==================================================
+        GOLDEN RULE: EXTRACTION OVER INTERPRETATION
+        ==================================================
+        DO NOT interpret. DO NOT assume. Only extract, classify, and organize the content of the uploaded report.
+
+        ==================================================
+        EXECUTIVE SUMMARY RULES
+        ==================================================
+        The Executive Summary MUST NOT contain generic medical advice, generic clinical conclusions, generic recommendations, or AI-generated medical interpretations.
+        It may ONLY contain report type, patient info, factually present info, availability of lab findings, and notes explicitly written by the physician.
+
+        ==================================================
+        KEY FINDINGS Engine
+        ==================================================
+        - Cardiology: Clinical history, chest pain, palpitations, shortness of breath, family history, and lifestyle factors.
+        - Blood: Biomarkers, reference ranges, and abnormal findings.
+        - Prescription: Medicines, dosage, and frequency.
+        - Radiology: Impression and findings.
+        DO NOT copy Medical History and Symptoms into Key Findings. Key Findings should be AI-organized bullet points.
+        For consultation reports, DO NOT display: "Detected", "Normal", "High", "Low", "Positive", "Negative". Use clean descriptive bullet-point sentences.
+
+        ==================================================
+        CLINICAL RECOMMENDATION ENGINE
+        ==================================================
+        Introductory statements like "The purpose of this report is to document the patient's cardiac health status and outline the management plan recommended based on our findings." are NOT recommendations. Do NOT include them under recommendations.
+        Extract recommendations ONLY if they are explicitly written in the report (follow-up instructions, physician recommendations, or treatment instructions exist).
+        If recommendations do not exist, return an empty array [].
+
+        -------------------------------------------------
+        JSON OUTPUT SCHEMA (STAGE 3)
+        -------------------------------------------------
+        Return ONLY valid JSON matching this schema:
         {
-          "summary": "string (1-2 sentences summarizing the overall clinical status based on the report)",
-          "keyFindings": [
+          "reportType": "string",
+          "patient": {
+            "name": "string",
+            "dob": "string",
+            "age": "string",
+            "gender": "string",
+            "patientId": "string"
+          },
+          "doctor": {
+            "name": "string",
+            "specialty": "string",
+            "contact": "string"
+          },
+          "summary": "string",
+          "medicalHistory": ["string"],
+          "symptoms": ["string"],
+          "familyHistory": ["string"],
+          "lifestyleInformation": ["string"],
+          "labResults": [
             {
-              "test": "string (e.g. Hemoglobin, TSH)",
-              "value": "string (e.g. 11.5 g/dL, 4.2 uIU/mL)",
-              "referenceRange": "string (e.g. 12.0 - 16.0 g/dL, 0.4 - 4.0 uIU/mL)",
-              "status": "string (Normal, High, Low, or Critical)"
+              "test": "string",
+              "value": "string",
+              "referenceRange": "string",
+              "status": "string",
+              "unit": "string"
             }
           ],
-          "highlightedInsights": [
-            {
-              "type": "string (danger, warning, or info)",
-              "message": "string (brief clinical insight about out-of-range values or patterns)"
-            }
-          ],
-          "recommendations": "string (clinical recommendations, follow-up tests, lifestyle changes)",
-          "warnings": "string (critical disclaimers, urgent warnings)"
+          "keyFindings": ["string"],
+          "criticalAlerts": ["string"],
+          "recommendations": ["string"],
+          "doctorNotes": ["string"],
+          "hasLabValues": boolean,
+          "hasCriticalFindings": boolean,
+          "ocrConfidence": number,
+          "classificationConfidence": number,
+          "analysisConfidence": number
         }
 
-        Here is the medical report text:
+        Here is the medical report text to analyze:
         "${rawReportText}"
       `;
 
@@ -106,14 +401,24 @@ const analyzeMedicalReport = async (rawReportText) => {
       });
 
       const responseText = response.text || response.candidates?.[0]?.content?.parts?.[0]?.text;
-      return JSON.parse(responseText.trim());
+      
+      console.log('--- STAGE 2: RAW GEMINI AI RESPONSE ---');
+      console.log(responseText);
+      console.log('---------------------------------------');
+
+      result = JSON.parse(responseText.trim());
     } catch (error) {
       console.error('Gemini report analysis failed, falling back to mock:', error);
     }
   }
 
-  // Mock Fallback Engine
-  return generateMockReportAnalysis(rawReportText);
+  // Use Mock Fallback Engine if AI failed
+  if (!result) {
+    result = generateMockReportAnalysis(rawReportText);
+  }
+
+  // Run through Field Validation Engine
+  return validateAndCleanFields(result);
 };
 
 // --- MOCK GENERATION LOGIC ---
@@ -178,7 +483,6 @@ function generateMockMedicineAnalysis(text) {
   }
 
   // Fallback to standard generic response if no match
-  // Try to find any capitalized word that might look like a name
   let nameMatches = text.match(/[A-Z][a-zA-Z]+/g) || ['GenericMedicine'];
   let guessedName = nameMatches.find(w => w.length > 4 && !['TABLET', 'CAPSULE', 'DAILY', 'TAKE', 'PHARMA', 'REFILL'].includes(w.toUpperCase())) || 'MediScan Generic';
 
@@ -186,94 +490,353 @@ function generateMockMedicineAnalysis(text) {
     medicineName: guessedName,
     activeIngredients: 'Active substance identified from image label (approx. 250mg)',
     dosage: 'Take 1 tablet daily or as directed by a healthcare professional.',
-    usageInstructions: 'Take with a glass of water, preferably at the same time each day. Check packaging for specific storage instructions.',
-    sideEffects: 'Mild headache, dry mouth, or stomach upset. Inform your doctor if these persist.',
-    warnings: 'Keep out of reach of children. Do not exceed the recommended dose. Consult your doctor if symptoms persist or worsen.',
-    precautions: 'Consult a physician if you are pregnant, nursing, taking other medications, or have a chronic medical condition.'
+    usageInstructions: 'Take a glass of water, preferably at the same time each day.',
+    sideEffects: 'Mild headache or stomach upset.',
+    warnings: 'Keep out of reach of children.',
+    precautions: 'Consult a physician if you are pregnant or nursing.'
   };
 }
 
 function generateMockReportAnalysis(text) {
   const normalizedText = (text || '').toLowerCase();
+  const lines = (text || '').split('\n').map(line => line.trim()).filter(Boolean);
 
-  const reportLibrary = [
-    {
-      keywords: ['lipid', 'cholesterol', 'triglycerides', 'hdl', 'ldl'],
-      summary: 'Lipid panel analysis shows slightly elevated LDL (bad) cholesterol and overall borderline high total cholesterol. Triglycerides and HDL levels are within normal bounds.',
-      keyFindings: [
-        { test: 'Total Cholesterol', value: '224 mg/dL', referenceRange: '< 200 mg/dL', status: 'High' },
-        { test: 'LDL Cholesterol', value: '142 mg/dL', referenceRange: '< 100 mg/dL', status: 'High' },
-        { test: 'HDL Cholesterol', value: '52 mg/dL', referenceRange: '> 40 mg/dL', status: 'Normal' },
-        { test: 'Triglycerides', value: '150 mg/dL', referenceRange: '< 150 mg/dL', status: 'Normal' }
-      ],
-      highlightedInsights: [
-        { type: 'warning', message: 'Total Cholesterol is in the borderline-high range (200-239 mg/dL).' },
-        { type: 'danger', message: 'LDL Cholesterol is elevated at 142 mg/dL. This is a potential risk factor for cardiovascular health.' }
-      ],
-      recommendations: 'Discuss with a physician regarding dietary changes (reducing saturated fats, increasing fiber) and regular cardiovascular exercise. Re-test lipid panel in 3 months.',
-      warnings: 'This analysis is AI-generated and not a diagnosis. Elevated LDL levels should be discussed with your physician to evaluate your complete cardiovascular risk profile.'
-    },
-    {
-      keywords: ['thyroid', 'tsh', 't3', 't4', 'thyroxine'],
-      summary: 'Thyroid panel indicates a slightly elevated Thyroid Stimulating Hormone (TSH) level with normal free T4, suggesting mild subclinical hypothyroidism.',
-      keyFindings: [
-        { test: 'TSH (Thyroid Stimulating Hormone)', value: '5.2 uIU/mL', referenceRange: '0.40 - 4.50 uIU/mL', status: 'High' },
-        { test: 'Free T4 (Thyroxine)', value: '1.2 ng/dL', referenceRange: '0.8 - 1.8 ng/dL', status: 'Normal' },
-        { test: 'Triiodothyronine (T3)', value: '110 ng/dL', referenceRange: '80 - 200 ng/dL', status: 'Normal' }
-      ],
-      highlightedInsights: [
-        { type: 'warning', message: 'TSH is elevated at 5.2 uIU/mL, which may indicate that the thyroid gland is slightly underactive.' },
-        { type: 'info', message: 'Free T4 and T3 levels are normal, indicating the body is currently maintaining thyroid hormone balance.' }
-      ],
-      recommendations: 'Consult with an endocrinologist or primary care physician. Subclinical hypothyroidism often requires monitoring rather than immediate hormone replacement therapy, depending on symptoms.',
-      warnings: 'Thyroid function values can fluctuate. Please review these results with your physician, particularly if you are experiencing symptoms like fatigue, weight gain, or cold sensitivity.'
-    },
-    {
-      keywords: ['cbc', 'hemoglobin', 'wbc', 'platelet', 'red blood', 'white blood'],
-      summary: 'Complete Blood Count (CBC) is largely within normal physiological parameters. A very mild elevation in White Blood Cell count is present, which is common during minor immune responses.',
-      keyFindings: [
-        { test: 'White Blood Cell (WBC)', value: '11.2 x10^3/uL', referenceRange: '4.5 - 11.0 x10^3/uL', status: 'High' },
-        { test: 'Red Blood Cell (RBC)', value: '4.7 x10^6/uL', referenceRange: '4.3 - 5.9 x10^6/uL', status: 'Normal' },
-        { test: 'Hemoglobin (HGB)', value: '14.5 g/dL', referenceRange: '13.5 - 17.5 g/dL', status: 'Normal' },
-        { test: 'Hematocrit (HCT)', value: '43.2 %', referenceRange: '41.0 - 50.0 %', status: 'Normal' },
-        { test: 'Platelets', value: '250 x10^3/uL', referenceRange: '150 - 450 x10^3/uL', status: 'Normal' }
-      ],
-      highlightedInsights: [
-        { type: 'warning', message: 'WBC count is slightly above the upper limit of normal, indicating a possible active immune response or recent stress/inflammation.' },
-        { type: 'info', message: 'All red blood cell parameters (Hemoglobin, Hematocrit, RBC Count) and platelets are perfectly healthy.' }
-      ],
-      recommendations: 'No immediate action is required for red cells or platelets. If WBC levels remain high or you show symptoms of infection (fever, chills, cough), consult your doctor.',
-      warnings: 'Always consult your healthcare provider. A CBC is a general screen and must be interpreted in light of your physical symptoms and history.'
-    }
-  ];
+  // 1. Detect Report Type
+  let reportType = 'Other Medical Documents';
+  if (normalizedText.includes('dental')) {
+    reportType = 'Dental Report';
+  } else {
+    const isConsultation = 
+      normalizedText.includes('referring physician') ||
+      normalizedText.includes('medical history') ||
+      normalizedText.includes('presenting complaints') ||
+      normalizedText.includes('chief complaint') ||
+      normalizedText.includes('specialty') ||
+      normalizedText.includes('consultation notes') ||
+      normalizedText.includes('past history');
 
-  // Try to match keywords
-  for (const item of reportLibrary) {
-    if (item.keywords.some(kw => normalizedText.includes(kw))) {
-      return {
-        summary: item.summary,
-        keyFindings: item.keyFindings,
-        highlightedInsights: item.highlightedInsights,
-        recommendations: item.recommendations,
-        warnings: item.warnings
+    if (isConsultation) {
+      if (normalizedText.includes('cardio') || normalizedText.includes('heart') || normalizedText.includes('ecg') || normalizedText.includes('ekg')) {
+        reportType = 'Cardiology Consultation Report';
+      } else {
+        reportType = 'General Consultation Report';
+      }
+    } else {
+      const matchesKey = (kw) => {
+        const regex = new RegExp('\\b' + kw + '\\b', 'i');
+        return regex.test(normalizedText);
       };
+
+      if (matchesKey('cbc') || matchesKey('hemoglobin') || matchesKey('wbc') || matchesKey('platelet') || matchesKey('hgb')) {
+        reportType = 'CBC Report';
+      } else if (matchesKey('lipid') || matchesKey('cholesterol') || matchesKey('triglycerides') || matchesKey('hdl') || matchesKey('ldl')) {
+        reportType = 'Lipid Profile';
+      } else if (matchesKey('thyroid') || matchesKey('tsh') || matchesKey('t3') || matchesKey('t4')) {
+        reportType = 'Thyroid Report';
+      } else if (matchesKey('creatinine') || matchesKey('bun') || matchesKey('urea') || matchesKey('kidney')) {
+        reportType = 'Kidney Function Test';
+      } else if (matchesKey('liver') || matchesKey('bilirubin') || matchesKey('albumin') || matchesKey('alt') || matchesKey('ast') || matchesKey('alp')) {
+        reportType = 'Liver Function Test';
+      } else if (matchesKey('diabetes') || matchesKey('glucose') || matchesKey('hba1c') || matchesKey('sugar')) {
+        reportType = 'Diabetes Report';
+      } else if (matchesKey('urine') || matchesKey('urinalysis')) {
+        reportType = 'Urine Report';
+      } else if (matchesKey('ecg') || matchesKey('ekg') || matchesKey('electrocardiogram')) {
+        reportType = 'ECG Report';
+      } else if (matchesKey('blood')) {
+        reportType = 'Blood Test Report';
+      }
+    }
+  }
+  
+  // Confidences (Separate metrics)
+  let ocrConfidence = 95;
+  let classificationConfidence = 95;
+  let analysisConfidence = 95;
+
+  if (lines.length < 5) {
+    ocrConfidence = 80;
+    analysisConfidence = 78;
+  } else if (lines.length < 10) {
+    ocrConfidence = 90;
+    analysisConfidence = 88;
+  } else {
+    ocrConfidence = 96;
+    analysisConfidence = 95;
+  }
+
+  // 2. Line-by-line helper to extract patient details safely
+  let name = 'Not Available';
+  let dob = 'Not Available';
+  let age = 'Not Available';
+  let gender = 'Not Available';
+  let patientId = 'Not Available';
+  let reportDate = 'Not Available';
+  
+  let physicianName = 'Not Available';
+  let specialty = 'Not Available';
+  let contact = 'Not Available';
+
+  for (const line of lines) {
+    const cleanLine = line.replace(/^[«*+•\-\s]+/, '').trim();
+    const cleanLower = cleanLine.toLowerCase();
+
+    const getValAfterColon = (lbl) => {
+      const idx = cleanLower.indexOf(lbl);
+      if (idx !== -1) {
+        let val = cleanLine.substring(idx + lbl.length).trim();
+        val = val.replace(/^[:\-\s]+|[:\-\s]+$/g, '').trim();
+        return val || 'Not Available';
+      }
+      return null;
+    };
+
+    if (cleanLower.startsWith('name') || cleanLower.startsWith('patient name')) {
+      const val = getValAfterColon('name') || getValAfterColon('patient name');
+      if (val && name === 'Not Available') name = val;
+    } else if (cleanLower.startsWith('date of birth') || cleanLower.startsWith('dob') || cleanLower.startsWith('birth date')) {
+      const val = getValAfterColon('date of birth') || getValAfterColon('dob') || getValAfterColon('birth date');
+      if (val && dob === 'Not Available') dob = val;
+    } else if (cleanLower.startsWith('age') || cleanLower.startsWith('age value')) {
+      const val = getValAfterColon('age') || getValAfterColon('age value');
+      if (val && age === 'Not Available') age = val;
+    } else if (cleanLower.startsWith('gender') || cleanLower.startsWith('gander') || cleanLower.startsWith('sex')) {
+      const val = getValAfterColon('gender') || getValAfterColon('gander') || getValAfterColon('sex');
+      if (val && gender === 'Not Available') gender = val;
+    } else if (cleanLower.startsWith('patient id') || cleanLower.startsWith('id') || cleanLower.startsWith('patient 0') || cleanLower.startsWith('patient0') || cleanLower.startsWith('patient  0')) {
+      const val = getValAfterColon('patient id') || getValAfterColon('id') || getValAfterColon('patient 0') || getValAfterColon('patient0') || getValAfterColon('patient  0');
+      if (val && patientId === 'Not Available') patientId = val;
+    } else if (cleanLower.startsWith('date of report') || cleanLower.startsWith('report date') || cleanLower.startsWith('date')) {
+      if (!cleanLower.includes('birth')) {
+        const val = getValAfterColon('date of report') || getValAfterColon('report date') || getValAfterColon('date');
+        if (val && reportDate === 'Not Available') reportDate = val;
+      }
+    } else if (cleanLower.startsWith('physician') || cleanLower.startsWith('doctor') || cleanLower.startsWith('dentist') || cleanLower.startsWith('dr.') || cleanLower.startsWith('dr ')) {
+      const val = getValAfterColon('physician name') || getValAfterColon('doctor name') || getValAfterColon('physician') || getValAfterColon('doctor') || getValAfterColon('dentist') || getValAfterColon('dr.') || getValAfterColon('dr');
+      if (val && physicianName === 'Not Available') {
+        physicianName = val.startsWith('Dr.') || val.startsWith('Dr ') ? val : 'Dr. ' + val;
+      }
+    } else if (cleanLower.startsWith('specialty') || cleanLower.startsWith('department')) {
+      const val = getValAfterColon('specialty') || getValAfterColon('department');
+      if (val && specialty === 'Not Available') specialty = val;
+    } else if (cleanLower.startsWith('contact') || cleanLower.startsWith('phone') || cleanLower.startsWith('email')) {
+      const val = getValAfterColon('contact') || getValAfterColon('phone') || getValAfterColon('email');
+      if (val && contact === 'Not Available') contact = val;
     }
   }
 
-  // Generic clinical report fallback
+  // 3. Extract Lab Results dynamically (Stage 3 fallback)
+  const isLabReport = 
+    reportType.includes('CBC') ||
+    reportType.includes('Lipid') ||
+    reportType.includes('Thyroid') ||
+    reportType.includes('Kidney') ||
+    reportType.includes('Liver') ||
+    reportType.includes('Diabetes') ||
+    reportType.includes('Urine') ||
+    reportType.includes('Blood') ||
+    normalizedText.includes('cholesterol') ||
+    normalizedText.includes('glucose') ||
+    normalizedText.includes('hba1c') ||
+    normalizedText.includes('bilirubin') ||
+    normalizedText.includes('creatinine') ||
+    normalizedText.includes('hemoglobin') ||
+    normalizedText.includes('wbc') ||
+    normalizedText.includes('platelet') ||
+    normalizedText.includes('pathology') ||
+    normalizedText.includes('clinical chemistry') ||
+    normalizedText.includes('hematology') ||
+    normalizedText.includes('serology');
+
+  const labResults = [];
+  const commonUnits = ['g/dl', 'mg/dl', 'ug/dl', 'ng/ml', 'uiuml', 'miu/l', 'mmol/l', 'umol/l', 'u/l', '%', 'fl', 'pg', '/ul', 'x10^3', 'x10^6', 'mql/l', 'g/l', 'mg/l'];
+
+  if (isLabReport) {
+    for (const line of lines) {
+      const cleanLine = line.replace(/^[«*+•\-\s]+/, '').trim();
+      const lowerLine = cleanLine.toLowerCase();
+
+      if (lowerLine.includes('patient') || lowerLine.includes('physician') || lowerLine.includes('doctor') || lowerLine.includes('date') || lowerLine.includes('report') || lowerLine.includes('page') || lowerLine.includes('reference range') || lowerLine.includes('result') || lowerLine.includes('test name')) {
+        continue;
+      }
+
+      // Look for a numeric value
+      const valueMatch = cleanLine.match(/(?:^|\s)((?:<|>|<=|>=)?\s*\d+(?:\.\d+)?)(?:\s|$)/);
+      if (!valueMatch) continue;
+
+      const valueStr = valueMatch[1].replace(/\s+/g, '');
+      const valueIndex = valueMatch.index;
+
+      let testName = cleanLine.substring(0, valueIndex).trim();
+      testName = testName.replace(/[:\-,\s]+$/, '').trim();
+
+      if (testName.length < 2 || testName.split(/\s+/).length > 5) {
+        continue;
+      }
+
+      const remaining = cleanLine.substring(valueIndex + valueMatch[0].length).trim();
+      const lowerRemaining = remaining.toLowerCase();
+
+      let referenceRange = 'N/A';
+      const refRangeMatch = remaining.match(/(?:\(|^|\s)(\d+(?:\.\d+)?\s*[-–]\s*\d+(?:\.\d+)?|<\s*\d+(?:\.\d+)?|>\s*\d+(?:\.\d+)?)(?:\)|$|\s)/);
+      if (refRangeMatch) {
+        referenceRange = refRangeMatch[1].trim();
+      }
+
+      let unit = '';
+      for (const u of commonUnits) {
+        const unitRegex = new RegExp('\\b' + u.replace('/', '\\/').replace('^', '\\^') + '\\b', 'i');
+        if (unitRegex.test(lowerRemaining)) {
+          unit = u;
+          break;
+        }
+      }
+
+      let status = 'Normal';
+      if (/\b(?:high|h|abnormal)\b/i.test(remaining)) {
+        status = 'High';
+      } else if (/\b(?:low|l)\b/i.test(remaining)) {
+        status = 'Low';
+      } else if (refRangeMatch && referenceRange.includes('-')) {
+        const parts = referenceRange.split(/[-–]/).map(p => parseFloat(p.trim()));
+        const numVal = parseFloat(valueStr.replace(/[^\d.]/g, ''));
+        if (!isNaN(numVal) && !isNaN(parts[0]) && !isNaN(parts[1])) {
+          if (numVal < parts[0]) status = 'Low';
+          else if (numVal > parts[1]) status = 'High';
+        }
+      }
+
+      if (!labResults.some(r => r.test.toLowerCase() === testName.toLowerCase())) {
+        labResults.push({
+          test: testName,
+          value: valueStr,
+          referenceRange,
+          status,
+          unit
+        });
+      }
+    }
+  }
+
+  // 4. Section-based context parsing with Prefix override protection (Section Purity Engine)
+  const medicalHistory = [];
+  const symptoms = [];
+  const familyHistory = [];
+  const lifestyleInformation = [];
+  const doctorNotes = [];
+  const recommendations = [];
+  const criticalAlerts = [];
+
+  let currentSection = 'general';
+
+  for (const line of lines) {
+    let cleanS = line.replace(/^[«*+•\-\s]+/, '').trim();
+    const lowerS = cleanS.toLowerCase();
+    
+    // Skip general document titles
+    if (lowerS === 'medical report samples' || lowerS.includes('sample 1') || lowerS.includes('sample 2') || lowerS === 'patient information') {
+      continue;
+    }
+
+    // Heuristically skip metadata line keys to avoid leakage in clinical lists
+    const isMetaLine = 
+      lowerS.includes('name') ||
+      lowerS.includes('date of birth') ||
+      lowerS.includes('dob') ||
+      lowerS.includes('birth') ||
+      lowerS.includes('age') ||
+      lowerS.includes('gender') ||
+      lowerS.includes('gander') ||
+      lowerS.includes('sex') ||
+      lowerS.includes('patient id') ||
+      lowerS.includes('patientid') ||
+      lowerS.includes('patient 0') ||
+      lowerS.includes('patient0') ||
+      lowerS.includes('patent') ||
+      lowerS.includes('physician') ||
+      lowerS.includes('doctor') ||
+      lowerS.includes('dentist') ||
+      lowerS.includes('specialty') ||
+      lowerS.includes('contact');
+
+    if (isMetaLine) {
+      if (lowerS.includes(':') || lowerS.includes('-') || lowerS.startsWith('patient') || lowerS.startsWith('physician') || lowerS.startsWith('doctor') || lowerS.startsWith('dentist') || lowerS.startsWith('name') || lowerS.startsWith('age') || lowerS.startsWith('gender') || lowerS.startsWith('gander') || lowerS.startsWith('sex') || lowerS.startsWith('dob') || lowerS.startsWith('date of birth') || lowerS.startsWith('patent')) {
+        continue;
+      }
+    }
+
+    // Check line prefixes to override currentSection dynamically for this line
+    if (lowerS.startsWith('diagnosis') || lowerS.startsWith('via signs') || lowerS.startsWith('vital signs') || lowerS.startsWith('symptoms') || lowerS.startsWith('presenting complaints') || lowerS.startsWith('complaints')) {
+      currentSection = 'symptoms';
+      cleanS = cleanS.replace(/^(?:diagnosis|via signs|vital signs|symptoms|presenting complaints|complaints)\s*[:\-]?\s*/i, '');
+    } else if (lowerS.startsWith('treatment plan') || lowerS.startsWith('treatment') || lowerS.startsWith('prescription') || lowerS.startsWith('recommendations') || lowerS.startsWith('follow-up') || lowerS.startsWith('advice')) {
+      currentSection = 'recommendations';
+      cleanS = cleanS.replace(/^(?:treatment plan|treatment|prescription|recommendations|follow-up|advice)\s*[:\-]?\s*/i, '');
+    } else if (lowerS.startsWith('medical history') || lowerS.startsWith('history') || lowerS.startsWith('past history')) {
+      currentSection = 'history';
+      cleanS = cleanS.replace(/^(?:medical history|history|past history)\s*[:\-]?\s*/i, '');
+    } else if (lowerS.startsWith('family history') || lowerS.startsWith('family')) {
+      currentSection = 'family';
+      cleanS = cleanS.replace(/^(?:family history|family)\s*[:\-]?\s*/i, '');
+    } else if (lowerS.startsWith('lifestyle information') || lowerS.startsWith('lifestyle') || lowerS.startsWith('hygiene')) {
+      currentSection = 'lifestyle';
+      cleanS = cleanS.replace(/^(?:lifestyle information|lifestyle|hygiene)\s*[:\-]?\s*/i, '');
+    } else if (lowerS.startsWith('notes') || lowerS.startsWith('remarks') || lowerS.startsWith('impression')) {
+      currentSection = 'notes';
+      cleanS = cleanS.replace(/^(?:notes|remarks|impression)\s*[:\-]?\s*/i, '');
+    }
+
+    cleanS = cleanS.trim();
+    if (cleanS.length < 3) continue;
+
+    if (currentSection === 'history') {
+      if (!medicalHistory.includes(cleanS)) medicalHistory.push(cleanS);
+    } else if (currentSection === 'symptoms') {
+      if (!symptoms.includes(cleanS)) symptoms.push(cleanS);
+    } else if (currentSection === 'family') {
+      if (!familyHistory.includes(cleanS)) familyHistory.push(cleanS);
+    } else if (currentSection === 'lifestyle') {
+      if (!lifestyleInformation.includes(cleanS)) lifestyleInformation.push(cleanS);
+    } else if (currentSection === 'recommendations') {
+      if (!recommendations.includes(cleanS)) recommendations.push(cleanS);
+    } else if (currentSection === 'notes') {
+      if (!doctorNotes.includes(cleanS)) doctorNotes.push(cleanS);
+    } else {
+      // General section fall-through findings (e.g. for non-lab, non-labeled documents)
+      if (!isLabReport) {
+        if (!symptoms.includes(cleanS)) symptoms.push(cleanS);
+      }
+    }
+  }
+
+  // Add lab-result critical alerts
+  for (const result of labResults) {
+    if (result.status !== 'Normal') {
+      criticalAlerts.push(`${result.test} is abnormal at ${result.value} ${result.unit} (Reference: ${result.referenceRange}).`);
+    }
+  }
+
+  const hasLabValues = labResults.length > 0;
+  const hasCriticalFindings = criticalAlerts.length > 0;
+
   return {
-    summary: 'General medical report analysis completed. Basic parameters appear mostly stable, but some values require review with your healthcare provider.',
-    keyFindings: [
-      { test: 'Fast Glucose (Sugar)', value: '98 mg/dL', referenceRange: '70 - 99 mg/dL', status: 'Normal' },
-      { test: 'Blood Urea Nitrogen (BUN)', value: '18 mg/dL', referenceRange: '7 - 20 mg/dL', status: 'Normal' },
-      { test: 'Creatinine (Kidney)', value: '1.25 mg/dL', referenceRange: '0.60 - 1.20 mg/dL', status: 'High' }
-    ],
-    highlightedInsights: [
-      { type: 'warning', message: 'Creatinine is slightly elevated at 1.25 mg/dL, which can indicate mild variations in kidney filtration or hydration levels.' },
-      { type: 'info', message: 'Fasting glucose levels are healthy and within the normal reference range.' }
-    ],
-    recommendations: 'Ensure adequate hydration and re-test kidney parameters (Creatinine, BUN) in a follow-up. Avoid strenuous workouts immediately before blood tests, as they can temporarily raise creatinine.',
-    warnings: 'Individual baseline levels vary. An AI scan cannot substitute for a professional medical consultation. Please share this analysis with your primary care provider.'
+    reportType,
+    patient: { name, dob, age, gender, patientId },
+    doctor: { name: physicianName, specialty, contact },
+    lifestyleInformation,
+    summary: '',
+    medicalHistory,
+    symptoms,
+    familyHistory,
+    labResults,
+    criticalAlerts: criticalAlerts.length > 0 ? criticalAlerts : ['No critical alerts detected.'],
+    doctorNotes,
+    hasLabValues,
+    hasCriticalFindings,
+    ocrConfidence,
+    classificationConfidence,
+    analysisConfidence,
+    recommendations: recommendations.join('\n')
   };
 }
 

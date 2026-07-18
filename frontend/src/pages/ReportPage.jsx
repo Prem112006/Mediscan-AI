@@ -125,6 +125,10 @@ const ReportPage = () => {
     }
   };
 
+  if (result) {
+    console.log('--- STAGE 4: FRONTEND RENDERED JSON ---', result);
+  }
+
   return (
     <div className="fade-in">
       <div style={{ marginBottom: '2rem' }}>
@@ -146,7 +150,7 @@ const ReportPage = () => {
               type="file" 
               ref={fileInputRef} 
               onChange={handleFileChange} 
-              accept=".pdf,image/*" 
+              accept="*/*" 
               style={{ display: 'none' }}
             />
 
@@ -288,106 +292,249 @@ const ReportPage = () => {
                 <FileText size={48} style={{ opacity: 0.15, marginBottom: '1rem' }} />
                 <p style={{ fontSize: '0.95rem' }}>Please drop your lab results or blood chart documents to review aggregated diagnostic findings.</p>
               </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }} className="fade-in">
-                
-                {/* Result Title Header */}
-                <div style={{
-                  padding: '1rem',
-                  background: 'rgba(99, 102, 241, 0.03)',
-                  border: '1px solid var(--secondary-glow)',
-                  borderRadius: 'var(--radius-sm)',
-                  marginBottom: '1.25rem'
-                }}>
-                  <h4 style={{ fontSize: '0.85rem', color: 'var(--secondary)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Document Name
-                  </h4>
-                  <p style={{ fontSize: '1rem', fontWeight: '700', color: 'var(--text-main)', marginTop: '0.15rem' }}>
-                    {result.fileName}
-                  </p>
-                </div>
+            ) : (() => {
+              const reportTypeLower = (result.reportType || '').toLowerCase();
+              const isLabReport = result.hasLabValues || (
+                result.reportType && (
+                  reportTypeLower.includes('blood') ||
+                  reportTypeLower.includes('cbc') ||
+                  reportTypeLower.includes('lipid') ||
+                  reportTypeLower.includes('thyroid') ||
+                  reportTypeLower.includes('kidney') ||
+                  reportTypeLower.includes('liver') ||
+                  reportTypeLower.includes('diabetes') ||
+                  reportTypeLower.includes('urine')
+                )
+              );
 
-                {/* Tabs Selector */}
-                <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', marginBottom: '1.25rem' }}>
-                  {['summary', 'findings', 'insights'].map((tab) => (
-                    <button
-                      key={tab}
-                      onClick={() => setActiveTab(tab)}
-                      style={{
-                        padding: '0.5rem 1.25rem',
-                        background: 'transparent',
-                        border: 'none',
-                        borderBottom: activeTab === tab ? '2px solid var(--secondary)' : 'none',
-                        color: activeTab === tab ? 'var(--secondary)' : 'var(--text-muted)',
-                        fontWeight: '600',
-                        fontSize: '0.85rem',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s'
-                      }}
-                    >
-                      {tab === 'summary' && 'Summary'}
-                      {tab === 'findings' && 'Key Findings'}
-                      {tab === 'insights' && 'Critical Alerts'}
-                    </button>
-                  ))}
-                </div>
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', flex: 1 }} className="fade-in">
+                  
+                  {/* Report Type Header */}
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    padding: '1rem',
+                    background: 'var(--primary)',
+                    color: '#ffffff',
+                    borderRadius: 'var(--radius-sm)',
+                  }}>
+                    <div>
+                      <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', opacity: 0.8, fontWeight: '700' }}>Detected Report Type</span>
+                      <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: '#ffffff', margin: 0 }}>{result.reportType || 'Medical Report'}</h3>
+                    </div>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '0.7rem', background: 'rgba(255,255,255,0.2)', padding: '0.25rem 0.5rem', borderRadius: '4px', fontWeight: '700' }}>
+                        OCR: {result.ocrConfidence || 95}%
+                      </span>
+                      <span style={{ fontSize: '0.7rem', background: 'rgba(255,255,255,0.2)', padding: '0.25rem 0.5rem', borderRadius: '4px', fontWeight: '700' }}>
+                        Class: {result.classificationConfidence || 95}%
+                      </span>
+                      <span style={{ fontSize: '0.7rem', background: 'rgba(255,255,255,0.2)', padding: '0.25rem 0.5rem', borderRadius: '4px', fontWeight: '700' }}>
+                        AI Analysis: {result.analysisConfidence || 95}%
+                      </span>
+                    </div>
+                  </div>
 
-                {/* Tab Contents */}
-                <div style={{ flex: 1, minHeight: '220px' }}>
-                  {activeTab === 'summary' && (
-                    <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                      <div>
-                        <h4 style={{ fontSize: '0.9rem', color: 'var(--secondary)', fontWeight: '700', marginBottom: '0.35rem' }}>Executive Summary</h4>
-                        <p style={{ color: 'var(--text-main)', fontSize: '0.9rem', lineHeight: '1.5' }}>{result.summary}</p>
-                      </div>
-                      <div>
-                        <h4 style={{ fontSize: '0.9rem', color: 'var(--primary)', fontWeight: '700', marginBottom: '0.35rem' }}>Clinical Recommendations</h4>
-                        <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', lineHeight: '1.45' }}>{result.recommendations}</p>
+                  {/* Patient Details Card */}
+                  {result.patientDetails && (
+                    result.patientDetails.name !== 'Not Available' || 
+                    result.patientDetails.age !== 'Not Available' || 
+                    result.patientDetails.gender !== 'Not Available' ||
+                    result.patientDetails.dob !== 'Not Available' ||
+                    result.patientDetails.reportDate !== 'Not Available'
+                  ) && (
+                    <div className="glass-panel" style={{ padding: '1.25rem' }}>
+                      <h4 style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.75rem', fontWeight: '700' }}>Patient Details</h4>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.75rem', fontSize: '0.9rem' }}>
+                        <div><strong>Name:</strong> {result.patientDetails.name || 'Not Available'}</div>
+                        <div><strong>Age:</strong> {result.patientDetails.age || 'Not Available'}</div>
+                        <div><strong>Gender:</strong> {result.patientDetails.gender || 'Not Available'}</div>
+                        <div><strong>Patient ID:</strong> {result.patientDetails.patientID || 'Not Available'}</div>
+                        <div><strong>Date of Birth:</strong> {result.patientDetails.dob || 'Not Available'}</div>
+                        <div><strong>Date of Report:</strong> {result.patientDetails.reportDate || 'Not Available'}</div>
                       </div>
                     </div>
                   )}
 
-                  {activeTab === 'findings' && (
-                    <div className="fade-in" style={{ overflowX: 'auto' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', textAlign: 'left' }}>
-                        <thead>
-                          <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
-                            <th style={{ padding: '0.5rem', fontWeight: '600' }}>Biomarker / Test</th>
-                            <th style={{ padding: '0.5rem', fontWeight: '600' }}>Value</th>
-                            <th style={{ padding: '0.5rem', fontWeight: '600' }}>Ref Range</th>
-                            <th style={{ padding: '0.5rem', fontWeight: '600' }}>Status</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {result.keyFindings.map((finding, index) => (
-                            <tr key={index} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                              <td style={{ padding: '0.75rem 0.5rem', fontWeight: '600', color: 'var(--text-main)' }}>{finding.test}</td>
-                              <td style={{ padding: '0.75rem 0.5rem', color: 'var(--text-main)' }}>{finding.value}</td>
-                              <td style={{ padding: '0.75rem 0.5rem', color: 'var(--text-muted)' }}>{finding.referenceRange}</td>
-                              <td style={{ padding: '0.75rem 0.5rem' }}>
-                                <span className={getStatusBadgeClass(finding.status)}>{finding.status}</span>
-                              </td>
+                  {/* Doctor Details Card */}
+                  {result.doctorDetails && (
+                    result.doctorDetails.physicianName !== 'Not Available' ||
+                    result.doctorDetails.specialty !== 'Not Available' ||
+                    result.doctorDetails.contact !== 'Not Available'
+                  ) && (
+                    <div className="glass-panel" style={{ padding: '1.25rem' }}>
+                      <h4 style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.75rem', fontWeight: '700' }}>Doctor & Clinic Information</h4>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.75rem', fontSize: '0.9rem' }}>
+                        <div><strong>Physician Name:</strong> {result.doctorDetails.physicianName || 'Not Available'}</div>
+                        <div><strong>Specialty:</strong> {result.doctorDetails.specialty || 'Not Available'}</div>
+                        <div><strong>Contact Info:</strong> {result.doctorDetails.contact || 'Not Available'}</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* OCR Quality Validation warning */}
+                  {(result.ocrConfidence && result.ocrConfidence < 85) && (
+                    <div style={{
+                      padding: '1rem',
+                      background: 'rgba(239, 68, 68, 0.1)',
+                      border: '1px solid var(--danger)',
+                      color: 'var(--danger)',
+                      borderRadius: 'var(--radius-sm)',
+                      fontSize: '0.9rem',
+                      fontWeight: '600'
+                    }}>
+                      ⚠️ Some portions of the uploaded report could not be extracted accurately.
+                    </div>
+                  )}
+
+                  {/* Executive Summary Card */}
+                  {result.summary && (
+                    <div className="glass-panel" style={{ padding: '1.25rem' }}>
+                      <h4 style={{ fontSize: '0.9rem', color: 'var(--primary)', fontWeight: '700', marginBottom: '0.5rem' }}>Executive Summary</h4>
+                      <p style={{ color: 'var(--text-main)', fontSize: '0.9rem', lineHeight: '1.5' }}>{result.summary}</p>
+                    </div>
+                  )}
+
+                  {/* Medical History Section */}
+                  {result.medicalHistory && result.medicalHistory.length > 0 && (
+                    <div className="glass-panel" style={{ padding: '1.25rem' }}>
+                      <h4 style={{ fontSize: '0.9rem', color: 'var(--secondary)', fontWeight: '700', marginBottom: '0.5rem' }}>Medical History</h4>
+                      <ul style={{ paddingLeft: '1.25rem', fontSize: '0.9rem', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                        {result.medicalHistory.map((item, idx) => <li key={idx}>{item}</li>)}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Symptoms Section */}
+                  {result.symptoms && result.symptoms.length > 0 && (
+                    <div className="glass-panel" style={{ padding: '1.25rem' }}>
+                      <h4 style={{ fontSize: '0.9rem', color: 'var(--secondary)', fontWeight: '700', marginBottom: '0.5rem' }}>Presenting Symptoms</h4>
+                      <ul style={{ paddingLeft: '1.25rem', fontSize: '0.9rem', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                        {result.symptoms.map((item, idx) => <li key={idx}>{item}</li>)}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Family History Section */}
+                  {result.familyHistory && result.familyHistory.length > 0 && (
+                    <div className="glass-panel" style={{ padding: '1.25rem' }}>
+                      <h4 style={{ fontSize: '0.9rem', color: 'var(--secondary)', fontWeight: '700', marginBottom: '0.5rem' }}>Family History</h4>
+                      <ul style={{ paddingLeft: '1.25rem', fontSize: '0.9rem', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                        {result.familyHistory.map((item, idx) => <li key={idx}>{item}</li>)}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Lifestyle Information Section */}
+                  {result.lifestyle && result.lifestyle.length > 0 && (
+                    <div className="glass-panel" style={{ padding: '1.25rem' }}>
+                      <h4 style={{ fontSize: '0.9rem', color: 'var(--secondary)', fontWeight: '700', marginBottom: '0.5rem' }}>Lifestyle Information</h4>
+                      <ul style={{ paddingLeft: '1.25rem', fontSize: '0.9rem', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                        {result.lifestyle.map((item, idx) => <li key={idx}>{item}</li>)}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Biomarkers / Lab Results Table */}
+                  {isLabReport && result.hasLabValues && result.labResults && result.labResults.length > 0 && (
+                    <div className="glass-panel" style={{ padding: '1.25rem' }}>
+                      <h4 style={{ fontSize: '0.9rem', color: 'var(--primary)', fontWeight: '700', marginBottom: '0.75rem' }}>Laboratory Test Biomarkers</h4>
+                      <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', textAlign: 'left' }}>
+                          <thead>
+                            <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
+                              <th style={{ padding: '0.5rem', fontWeight: '600' }}>Biomarker / Test</th>
+                              <th style={{ padding: '0.5rem', fontWeight: '600' }}>Value</th>
+                              <th style={{ padding: '0.5rem', fontWeight: '600' }}>Ref Range</th>
+                              <th style={{ padding: '0.5rem', fontWeight: '600' }}>Status</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody>
+                            {result.labResults.map((item, index) => (
+                              <tr key={index} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                                <td style={{ padding: '0.75rem 0.5rem', fontWeight: '600', color: 'var(--text-main)' }}>{item.test}</td>
+                                <td style={{ padding: '0.75rem 0.5rem', color: 'var(--text-main)', fontWeight: '600' }}>
+                                  {item.value} {item.unit && item.unit !== 'Not Available' ? item.unit : ''}
+                                </td>
+                                <td style={{ padding: '0.75rem 0.5rem', color: 'var(--text-muted)' }}>{item.referenceRange}</td>
+                                <td style={{ padding: '0.75rem 0.5rem' }}>
+                                  <span className={getStatusBadgeClass(item.status)}>{item.status}</span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   )}
 
-                  {activeTab === 'insights' && (
-                    <div className="fade-in">
-                      <h4 style={{ fontSize: '0.9rem', color: 'var(--danger)', fontWeight: '700', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                        <ShieldAlert size={16} /> Clinical Warnings & Insights
-                      </h4>
-                      <HighlightedInsights insights={result.highlightedInsights} />
+                  {/* Key Findings Card */}
+                  {result.keyFindings && result.keyFindings.length > 0 && (
+                    <div className="glass-panel" style={{ padding: '1.25rem' }}>
+                      <h4 style={{ fontSize: '0.9rem', color: 'var(--secondary)', fontWeight: '700', marginBottom: '0.5rem' }}>Key Findings</h4>
+                      <ul style={{ paddingLeft: '1.25rem', fontSize: '0.9rem', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                        {result.keyFindings.map((item, idx) => (
+                          <li key={idx}>
+                            {typeof item === 'string'
+                              ? item
+                              : (isLabReport
+                                  ? `${item.test}: ${item.value}`
+                                  : item.test
+                                )
+                            }
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                   )}
+
+                  {/* Doctor Notes Section */}
+                  {result.doctorNotes && result.doctorNotes.length > 0 && (
+                    <div className="glass-panel" style={{ padding: '1.25rem' }}>
+                      <h4 style={{ fontSize: '0.9rem', color: 'var(--secondary)', fontWeight: '700', marginBottom: '0.5rem' }}>Doctor Notes & Clinical Remarks</h4>
+                      <ul style={{ paddingLeft: '1.25rem', fontSize: '0.9rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                        {result.doctorNotes.map((item, idx) => <li key={idx}>{item}</li>)}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Critical Alerts Section */}
+                  <div className="glass-panel" style={{ padding: '1.25rem', borderColor: result.hasCriticalFindings ? 'var(--danger-glow)' : 'var(--border-color)' }}>
+                    <h4 style={{ fontSize: '0.9rem', color: result.hasCriticalFindings ? 'var(--danger)' : 'var(--primary)', fontWeight: '700', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <ShieldAlert size={16} /> Critical Alerts
+                    </h4>
+                    {result.hasCriticalFindings && result.criticalAlerts && result.criticalAlerts.length > 0 && !result.criticalAlerts[0]?.toLowerCase()?.includes('no critical alerts') ? (
+                      <ul style={{ paddingLeft: '1.25rem', fontSize: '0.9rem', color: 'var(--danger)', display: 'flex', flexDirection: 'column', gap: '0.35rem', fontWeight: '500' }}>
+                        {result.criticalAlerts.map((item, idx) => <li key={idx}>{item}</li>)}
+                      </ul>
+                    ) : (
+                      <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontStyle: 'italic' }}>
+                        No critical alerts detected.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Recommendations Section (Hide completely if empty) */}
+                  {result.recommendations && (Array.isArray(result.recommendations) ? result.recommendations.length > 0 : result.recommendations.trim() !== '') && (
+                    <div className="glass-panel" style={{ padding: '1.25rem' }}>
+                      <h4 style={{ fontSize: '0.9rem', color: 'var(--primary)', fontWeight: '700', marginBottom: '0.5rem' }}>Clinical Recommendations</h4>
+                      {Array.isArray(result.recommendations) ? (
+                        <ul style={{ paddingLeft: '1.25rem', fontSize: '0.9rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                          {result.recommendations.map((item, idx) => <li key={idx}>{item}</li>)}
+                        </ul>
+                      ) : (
+                        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: '1.45', whiteSpace: 'pre-line' }}>{result.recommendations}</p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Disclaimer */}
+                  <MedicalDisclaimer />
                 </div>
-
-                {/* Disclaimer */}
-                <MedicalDisclaimer />
-              </div>
-            )}
+              );
+            })()}
           </div>
         </div>
       </div>

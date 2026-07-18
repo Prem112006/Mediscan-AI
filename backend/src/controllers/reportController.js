@@ -3,6 +3,7 @@ const { extractTextFromImage } = require('../utils/ocr');
 const { extractTextFromPDF } = require('../utils/pdfExtractor');
 const { analyzeMedicalReport } = require('../utils/llm');
 const path = require('path');
+const fs = require('fs');
 
 /**
  * @desc    Upload report (image/PDF), extract text, analyze using LLM, save to history
@@ -23,8 +24,10 @@ const analyzeReportFile = async (req, res) => {
     // 1. Extract text depending on file type
     let rawText = '';
     try {
-      if (fileType === 'pdf') {
+      if (req.file.mimetype === 'application/pdf') {
         rawText = await extractTextFromPDF(filePath);
+      } else if (req.file.mimetype.startsWith('text/') || req.file.mimetype === 'application/json') {
+        rawText = fs.readFileSync(filePath, 'utf-8');
       } else {
         rawText = await extractTextFromImage(filePath);
       }
@@ -40,6 +43,10 @@ const analyzeReportFile = async (req, res) => {
       });
     }
 
+    console.log('--- STAGE 1: RAW OCR TEXT EXTRACTED ---');
+    console.log(rawText);
+    console.log('---------------------------------------');
+
     // 2. Perform AI Analysis on the extracted text
     let analysisResult;
     try {
@@ -49,6 +56,10 @@ const analyzeReportFile = async (req, res) => {
       return res.status(500).json({ success: false, error: 'Failed to analyze report using AI' });
     }
 
+    console.log('--- STAGE 3: VALIDATED AND MAPPED JSON OBJECT ---');
+    console.log(JSON.stringify(analysisResult, null, 2));
+    console.log('-------------------------------------------------');
+
     // 3. Save to database history
     const newReportRecord = await ReportHistory.create({
       userId: req.user.id,
@@ -56,10 +67,29 @@ const analyzeReportFile = async (req, res) => {
       fileType,
       fileName,
       rawText,
+      reportType: analysisResult.reportType || 'Other',
+      patient: analysisResult.patient || {},
+      doctor: analysisResult.doctor || {},
+      lifestyleInformation: analysisResult.lifestyleInformation || [],
+      patientDetails: analysisResult.patientDetails || {},
+      doctorDetails: analysisResult.doctorDetails || {},
       summary: analysisResult.summary || 'Summary not generated',
+      medicalHistory: analysisResult.medicalHistory || [],
+      symptoms: analysisResult.symptoms || [],
+      familyHistory: analysisResult.familyHistory || [],
+      lifestyle: analysisResult.lifestyle || [],
+      labResults: analysisResult.labResults || [],
       keyFindings: analysisResult.keyFindings || [],
       highlightedInsights: analysisResult.highlightedInsights || [],
+      criticalAlerts: analysisResult.criticalAlerts || [],
       recommendations: analysisResult.recommendations || 'Consult your physician',
+      doctorNotes: analysisResult.doctorNotes || [],
+      hasLabValues: analysisResult.hasLabValues || false,
+      hasCriticalFindings: analysisResult.hasCriticalFindings || false,
+      reportConfidence: analysisResult.reportConfidence || 95,
+      ocrConfidence: analysisResult.ocrConfidence || 95,
+      classificationConfidence: analysisResult.classificationConfidence || 95,
+      analysisConfidence: analysisResult.analysisConfidence || 95,
       warnings: analysisResult.warnings || 'For educational use only'
     });
 

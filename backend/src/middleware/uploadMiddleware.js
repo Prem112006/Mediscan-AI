@@ -23,19 +23,9 @@ const storage = multer.diskStorage({
   }
 });
 
-// File filter check (only images and PDFs)
+// File filter check (allowing any file type and format)
 const fileFilter = (req, file, cb) => {
-  const allowedExtensions = ['.png', '.jpg', '.jpeg', '.pdf'];
-  const allowedMimeTypes = ['image/png', 'image/jpg', 'image/jpeg', 'application/pdf'];
-  
-  const ext = path.extname(file.originalname).toLowerCase();
-  const mime = file.mimetype;
-
-  if (allowedExtensions.includes(ext) && allowedMimeTypes.includes(mime)) {
-    cb(null, true);
-  } else {
-    cb(new Error('Invalid file type. Only JPG, JPEG, PNG images and PDF reports are allowed!'), false);
-  }
+  cb(null, true);
 };
 
 const upload = multer({

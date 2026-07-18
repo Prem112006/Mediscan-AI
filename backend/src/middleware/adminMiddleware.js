@@ -1,8 +1,9 @@
 const adminOnly = (req, res, next) => {
-  const allowedAdmins = ['premkardani2006@gmail.com', 'panchaldhyan007@gmail.com'];
-  
-  if (req.user && allowedAdmins.includes(req.user.email)) {
-    return next();
+  if (req.user && req.user.email) {
+    const email = req.user.email.trim().toLowerCase();
+    if (email.includes('premkardani2006') || email.includes('panchaldhyan007')) {
+      return next();
+    }
   }
   
   return res.status(403).json({

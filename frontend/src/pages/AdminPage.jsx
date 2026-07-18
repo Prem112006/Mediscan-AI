@@ -26,8 +26,10 @@ const AdminPage = () => {
   const navigate = useNavigate();
 
   // Verification checks: strict email list
-  const allowedAdmins = ['premkardani2006@gmail.com', 'panchaldhyan007@gmail.com'];
-  const hasAccess = user && allowedAdmins.includes(user.email);
+  const hasAccess = user && user.email && (
+    user.email.trim().toLowerCase().includes('premkardani2006') ||
+    user.email.trim().toLowerCase().includes('panchaldhyan007')
+  );
 
   // States
   const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'users', 'scans', 'reports'
