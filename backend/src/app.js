@@ -24,6 +24,7 @@ app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/scan', require('./routes/scanRoutes'));
 app.use('/api/report', require('./routes/reportRoutes'));
 app.use('/api/user', require('./routes/userRoutes'));
+app.use('/api/admin', require('./routes/adminRoutes'));
 
 // Root path ping check
 app.get('/', (req, res) => {

@@ -33,12 +33,12 @@ const ForgotPasswordPage = () => {
   return (
     <div style={{
       minHeight: '100vh',
-      backgroundColor: '#0b0f19',
+      backgroundColor: 'var(--bg-main)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       padding: '2rem 1.5rem',
-      backgroundImage: 'radial-gradient(circle at center, rgba(245, 158, 11, 0.03) 0%, transparent 70%)',
+      backgroundImage: 'radial-gradient(circle at center, rgba(0, 0, 0, 0.02) 0%, transparent 70%)',
       fontFamily: 'Outfit, sans-serif'
     }}>
       <div style={{ maxWidth: '400px', width: '100%' }} className="fade-in">
