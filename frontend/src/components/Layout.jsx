@@ -19,11 +19,14 @@ const Layout = ({ children }) => {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  const isAdmin = user && (user.email === 'premkardani2006@gmail.com' || user.email === 'panchaldhyan007@gmail.com');
+
   const navItems = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
     { name: 'Medicine Scanner', path: '/scanner', icon: Pill },
     { name: 'Report Analyzer', path: '/report', icon: FileText },
     { name: 'Medical History', path: '/history', icon: History },
+    ...(isAdmin ? [{ name: 'Admin Panel', path: '/admin', icon: ShieldCheck }] : [])
   ];
 
   const handleLogout = () => {
@@ -44,7 +47,7 @@ const Layout = ({ children }) => {
         top: 0,
         bottom: 0,
         width: 'var(--sidebar-width)',
-        background: 'rgba(15, 23, 42, 0.8)',
+        background: 'rgba(255, 255, 255, 0.8)',
         backdropFilter: 'blur(20px)',
         borderRight: '1px solid var(--border-color)',
         display: 'flex',
@@ -125,7 +128,7 @@ const Layout = ({ children }) => {
                   justifyContent: 'flex-start',
                   padding: '0.85rem 1rem',
                   fontSize: '0.9rem',
-                  background: isActive ? 'linear-gradient(135deg, var(--primary), #059669)' : 'transparent',
+                  background: isActive ? 'var(--primary)' : 'transparent',
                   border: 'none',
                   color: isActive ? '#fff' : 'var(--text-muted)',
                   boxShadow: isActive ? '0 4px 15px -3px var(--primary-glow)' : 'none',
@@ -169,7 +172,7 @@ const Layout = ({ children }) => {
         left: 0,
         right: 0,
         height: '4rem',
-        background: 'rgba(11, 15, 25, 0.8)',
+        background: 'rgba(255, 255, 255, 0.85)',
         backdropFilter: 'blur(16px)',
         borderBottom: '1px solid var(--border-color)',
         display: 'none',
@@ -217,7 +220,7 @@ const Layout = ({ children }) => {
           left: 0,
           right: 0,
           bottom: 0,
-          background: '#0b0f19',
+          background: '#ffffff',
           zIndex: 98,
           display: 'flex',
           flexDirection: 'column',

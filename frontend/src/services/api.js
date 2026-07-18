@@ -98,4 +98,11 @@ export const api = {
     method: 'POST',
     body: formData, // FormData contains 'file' file
   }),
+
+  // Admin Portal APIs
+  getAdminStats: () => request('/admin/stats'),
+  getAdminUsers: (search = '') => request(`/admin/users?search=${encodeURIComponent(search)}`),
+  getAdminUserDetail: (id) => request(`/admin/users/${id}`),
+  getAdminScans: (search = '') => request(`/admin/scans?search=${encodeURIComponent(search)}`),
+  getAdminReports: (search = '') => request(`/admin/reports?search=${encodeURIComponent(search)}`),
 };

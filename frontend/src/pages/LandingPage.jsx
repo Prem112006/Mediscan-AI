@@ -9,8 +9,8 @@ const LandingPage = () => {
   return (
     <div style={{
       minHeight: '100vh',
-      backgroundColor: '#0b0f19',
-      backgroundImage: 'radial-gradient(circle at 50% -20%, rgba(99, 102, 241, 0.15) 0%, transparent 60%), radial-gradient(circle at 10% 80%, rgba(16, 185, 129, 0.05) 0%, transparent 45%)',
+      backgroundColor: 'var(--bg-main)',
+      backgroundImage: 'radial-gradient(circle at 50% -20%, rgba(0, 0, 0, 0.03) 0%, transparent 60%), radial-gradient(circle at 10% 80%, rgba(0, 0, 0, 0.02) 0%, transparent 45%)',
       fontFamily: 'Outfit, sans-serif'
     }}>
       {/* Top Navbar */}

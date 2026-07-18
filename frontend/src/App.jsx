@@ -13,6 +13,7 @@ import DashboardPage from './pages/DashboardPage';
 import ScannerPage from './pages/ScannerPage';
 import ReportPage from './pages/ReportPage';
 import HistoryPage from './pages/HistoryPage';
+import AdminPage from './pages/AdminPage';
 
 function App() {
   return (
@@ -62,6 +63,16 @@ function App() {
               <ProtectedRoute>
                 <Layout>
                   <HistoryPage />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <AdminPage />
                 </Layout>
               </ProtectedRoute>
             }
