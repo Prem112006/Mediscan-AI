@@ -19,7 +19,10 @@ const Layout = ({ children }) => {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const isAdmin = user && (user.email === 'premkardani2006@gmail.com' || user.email === 'panchaldhyan007@gmail.com');
+  const isAdmin = user && user.email && (
+    user.email.trim().toLowerCase().includes('premkardani2006') ||
+    user.email.trim().toLowerCase().includes('panchaldhyan007')
+  );
 
   const navItems = [
     { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },

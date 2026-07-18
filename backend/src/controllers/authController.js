@@ -189,6 +189,12 @@ const googleOAuthLogin = async (req, res) => {
     });
   } catch (error) {
     console.error('Google OAuth error:', error);
+    try {
+      const fs = require('fs');
+      fs.writeFileSync(require('path').join(__dirname, '..', '..', 'oauth_error_log.txt'), error.stack || error.toString());
+    } catch (e) {
+      console.error('Failed to write error log:', e);
+    }
     res.status(500).json({ success: false, error: 'Server error during Google OAuth authentication' });
   }
 };
