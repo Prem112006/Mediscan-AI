@@ -189,7 +189,7 @@ const LoginPage = () => {
       alignItems: 'center',
       justifyContent: 'center',
       padding: '2rem 1.5rem',
-      backgroundImage: 'radial-gradient(circle at center, rgba(0, 0, 0, 0.02) 0%, transparent 70%)',
+      backgroundImage: 'radial-gradient(circle at center, rgba(255, 255, 255, 0.02) 0%, transparent 70%)',
       fontFamily: 'Outfit, sans-serif'
     }}>
       {/* Simulation Overlay */}
@@ -244,7 +244,7 @@ const LoginPage = () => {
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: 'white',
+            color: '#000000',
             fontWeight: '800',
             fontSize: '1.25rem',
             marginBottom: '1rem'

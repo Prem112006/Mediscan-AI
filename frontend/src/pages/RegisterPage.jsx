@@ -155,7 +155,7 @@ const RegisterPage = () => {
       alignItems: 'center',
       justifyContent: 'center',
       padding: '2rem 1.5rem',
-      backgroundImage: 'radial-gradient(circle at center, rgba(0, 0, 0, 0.02) 0%, transparent 70%)',
+      backgroundImage: 'radial-gradient(circle at center, rgba(255, 255, 255, 0.02) 0%, transparent 70%)',
       fontFamily: 'Outfit, sans-serif'
     }}>
       {/* Simulation Overlay */}

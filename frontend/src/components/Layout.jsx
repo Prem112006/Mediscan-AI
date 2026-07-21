@@ -50,7 +50,7 @@ const Layout = ({ children }) => {
         top: 0,
         bottom: 0,
         width: 'var(--sidebar-width)',
-        background: 'rgba(255, 255, 255, 0.8)',
+        background: 'rgba(9, 9, 11, 0.85)',
         backdropFilter: 'blur(20px)',
         borderRight: '1px solid var(--border-color)',
         display: 'flex',
@@ -75,7 +75,7 @@ const Layout = ({ children }) => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: 'white',
+            color: '#000000',
             fontWeight: '800'
           }}>
             M
@@ -95,7 +95,7 @@ const Layout = ({ children }) => {
             display: 'flex',
             alignItems: 'center',
             gap: '0.75rem',
-            background: 'rgba(255, 255, 255, 0.02)'
+            background: 'rgba(255, 255, 255, 0.04)'
           }}>
             <div style={{
               width: '40px',
@@ -133,7 +133,7 @@ const Layout = ({ children }) => {
                   fontSize: '0.9rem',
                   background: isActive ? 'var(--primary)' : 'transparent',
                   border: 'none',
-                  color: isActive ? '#fff' : 'var(--text-muted)',
+                  color: isActive ? '#000000' : 'var(--text-muted)',
                   boxShadow: isActive ? '0 4px 15px -3px var(--primary-glow)' : 'none',
                   borderRadius: 'var(--radius-sm)',
                   display: 'flex',
@@ -175,12 +175,12 @@ const Layout = ({ children }) => {
         left: 0,
         right: 0,
         height: '4rem',
-        background: 'rgba(255, 255, 255, 0.85)',
+        background: 'rgba(9, 9, 11, 0.85)',
         backdropFilter: 'blur(16px)',
         borderBottom: '1px solid var(--border-color)',
         display: 'none',
         alignItems: 'center',
-        justifyContent: 'between',
+        justifyContent: 'space-between',
         padding: '0 1.5rem',
         zIndex: 99
       }} className="mobile-header">
@@ -193,7 +193,7 @@ const Layout = ({ children }) => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: 'white',
+            color: '#000000',
             fontWeight: '800',
             fontSize: '0.75rem'
           }}>
@@ -223,7 +223,7 @@ const Layout = ({ children }) => {
           left: 0,
           right: 0,
           bottom: 0,
-          background: '#ffffff',
+          background: 'var(--bg-main)',
           zIndex: 98,
           display: 'flex',
           flexDirection: 'column',
