@@ -106,6 +106,8 @@ const UI_STRINGS = {
 
 const ReportPage = () => {
   const [selectedFile, setSelectedFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [showLightbox, setShowLightbox] = useState(false);
   const [loading, setLoading] = useState(false);
   const [analyzeProgress, setAnalyzeProgress] = useState(0);
   const [result, setResult] = useState(null);
@@ -126,6 +128,12 @@ const ReportPage = () => {
     const file = e.target.files[0];
     if (file) {
       setSelectedFile(file);
+      if (file.type.startsWith('image/')) {
+        const previewUrl = URL.createObjectURL(file);
+        setImagePreview(previewUrl);
+      } else {
+        setImagePreview(null);
+      }
     }
   };
 
@@ -263,6 +271,7 @@ const ReportPage = () => {
 
   const handleReset = () => {
     setSelectedFile(null);
+    setImagePreview(null);
     setResult(null);
     setOriginalResult(null);
     setTranslatedResults({});
@@ -303,7 +312,7 @@ const ReportPage = () => {
       <div className="dashboard-grid">
         {/* Left Card: Document Drop Zone */}
         <div className="col-5">
-          <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', height: '100%' }}>
+          <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', height: result ? 'auto' : '100%' }}>
             <h3 style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '1rem' }}>Upload Document</h3>
 
             <input 
@@ -318,10 +327,10 @@ const ReportPage = () => {
             <div 
               onClick={!result && !loading ? triggerUpload : null}
               style={{
-                flex: 1,
-                minHeight: '260px',
-                border: '2px dashed rgba(99, 102, 241, 0.3)',
-                background: selectedFile ? 'rgba(99, 102, 241, 0.03)' : 'rgba(0, 0, 0, 0.2)',
+                flex: result ? 'none' : 1,
+                minHeight: result ? '160px' : '260px',
+                border: '2px dashed var(--border-color)',
+                background: selectedFile || result ? 'rgba(255, 255, 255, 0.02)' : 'rgba(255, 255, 255, 0.01)',
                 borderRadius: 'var(--radius-md)',
                 display: 'flex',
                 flexDirection: 'column',
@@ -335,19 +344,64 @@ const ReportPage = () => {
             >
               {loading && <div className="scanner-laser" style={{ background: 'linear-gradient(to right, transparent, var(--secondary), transparent)', boxShadow: '0 0 12px 3px var(--secondary)' }} />}
 
-              <FileText size={48} style={{ color: selectedFile ? 'var(--secondary)' : 'var(--text-dark)', marginBottom: '1rem', opacity: selectedFile ? 0.9 : 0.3 }} />
-              
-              {selectedFile ? (
-                <div style={{ textAlign: 'center' }}>
-                  <p style={{ fontWeight: '600', fontSize: '0.95rem', wordBreak: 'break-all' }}>{selectedFile.name}</p>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '0.25rem' }}>
-                    Type: {(selectedFile.type || 'document').toUpperCase()} | Size: {(selectedFile.size / 1024).toFixed(1)} KB
+              {selectedFile || result ? (
+                <div style={{ textAlign: 'center', padding: '1rem', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+                  {imagePreview || (result && result.fileType === 'image') ? (
+                    <img 
+                      src={imagePreview || result.fileUrl} 
+                      alt="Report Preview" 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowLightbox(true);
+                      }}
+                      style={{
+                        maxHeight: '220px',
+                        maxWidth: '100%',
+                        borderRadius: 'var(--radius-sm)',
+                        objectFit: 'contain',
+                        border: '1px solid var(--border-color)',
+                        marginBottom: '0.25rem',
+                        cursor: 'zoom-in',
+                        transition: 'transform 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.03)'}
+                      onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                    />
+                  ) : (
+                    <FileText size={48} style={{ color: 'var(--primary)', opacity: 0.9 }} />
+                  )}
+                  <p style={{ fontWeight: '700', fontSize: '1rem', color: 'var(--text-main)', wordBreak: 'break-all' }}>
+                    {selectedFile ? selectedFile.name : (result.fileName || 'Analyzed Report')}
                   </p>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>
+                    {selectedFile 
+                      ? `Type: ${(selectedFile.type || 'document').toUpperCase()} | Size: ${(selectedFile.size / 1024).toFixed(1)} KB`
+                      : `Type: ${result.reportType || 'Medical Report'}`
+                    }
+                  </p>
+                  <div style={{ 
+                    marginTop: '0.5rem', 
+                    display: 'inline-flex', 
+                    alignItems: 'center', 
+                    gap: '0.35rem',
+                    background: 'rgba(16, 185, 129, 0.1)',
+                    color: '#10b981',
+                    padding: '0.35rem 0.75rem',
+                    borderRadius: '50px',
+                    fontSize: '0.75rem',
+                    fontWeight: '700',
+                    border: '1px solid rgba(16, 185, 129, 0.2)'
+                  }}>
+                    ✓ Analysis Active
+                  </div>
                 </div>
               ) : (
-                <div style={{ textAlign: 'center', color: 'var(--text-dark)' }}>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem' }}>Drag & drop file here or click to browse</p>
-                  <p style={{ fontSize: '0.8rem', marginTop: '0.25rem' }}>Supports images (PNG, JPG) and PDF files</p>
+                <div style={{ textAlign: 'center', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
+                  <FileText size={48} style={{ color: 'var(--text-dark)', opacity: 0.4 }} />
+                  <div>
+                    <p style={{ color: 'var(--text-main)', fontSize: '0.95rem', fontWeight: '600' }}>Drag & drop file here or click to browse</p>
+                    <p style={{ fontSize: '0.8rem', marginTop: '0.25rem', color: 'var(--text-muted)' }}>Supports images (PNG, JPG) and PDF files</p>
+                  </div>
                 </div>
               )}
 
@@ -496,29 +550,29 @@ const ReportPage = () => {
 
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', flex: 1 }} className="fade-in">
-                  
                   {/* Report Type Header */}
                   <div style={{
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
                     padding: '1rem',
-                    background: 'var(--primary)',
-                    color: '#ffffff',
+                    background: 'var(--bg-card)',
+                    border: '1px solid var(--border-color)',
+                    color: 'var(--text-main)',
                     borderRadius: 'var(--radius-sm)',
                   }}>
                     <div>
-                      <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', opacity: 0.8, fontWeight: '700' }}>{UI_STRINGS[selectedLanguage].detectedReportType}</span>
-                      <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: '#ffffff', margin: 0 }}>{result.reportType || 'Medical Report'}</h3>
+                      <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', opacity: 0.8, fontWeight: '700', color: 'var(--text-muted)' }}>{UI_STRINGS[selectedLanguage].detectedReportType}</span>
+                      <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: 'var(--text-main)', margin: 0 }}>{result.reportType || 'Medical Report'}</h3>
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '0.7rem', background: 'rgba(255,255,255,0.2)', padding: '0.25rem 0.5rem', borderRadius: '4px', fontWeight: '700' }}>
+                      <span style={{ fontSize: '0.7rem', background: 'rgba(255, 255, 255, 0.08)', border: '1px solid var(--border-color)', padding: '0.25rem 0.5rem', borderRadius: '4px', fontWeight: '700', color: 'var(--text-muted)' }}>
                         OCR: {result.ocrConfidence || 95}%
                       </span>
-                      <span style={{ fontSize: '0.7rem', background: 'rgba(255,255,255,0.2)', padding: '0.25rem 0.5rem', borderRadius: '4px', fontWeight: '700' }}>
+                      <span style={{ fontSize: '0.7rem', background: 'rgba(255, 255, 255, 0.08)', border: '1px solid var(--border-color)', padding: '0.25rem 0.5rem', borderRadius: '4px', fontWeight: '700', color: 'var(--text-muted)' }}>
                         Class: {result.classificationConfidence || 95}%
                       </span>
-                      <span style={{ fontSize: '0.7rem', background: 'rgba(255,255,255,0.2)', padding: '0.25rem 0.5rem', borderRadius: '4px', fontWeight: '700' }}>
+                      <span style={{ fontSize: '0.7rem', background: 'rgba(255, 255, 255, 0.08)', border: '1px solid var(--border-color)', padding: '0.25rem 0.5rem', borderRadius: '4px', fontWeight: '700', color: 'var(--text-muted)' }}>
                         AI Analysis: {result.analysisConfidence || 95}%
                       </span>
                     </div>
@@ -725,6 +779,61 @@ const ReportPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Lightbox Modal */}
+      {showLightbox && (imagePreview || (result && result.fileType === 'image')) && (
+        <div 
+          onClick={() => setShowLightbox(false)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.93)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 99999,
+            cursor: 'zoom-out',
+            padding: '2rem',
+            animation: 'fade-in 0.2s ease-out'
+          }}
+        >
+          <img 
+            src={imagePreview || result.fileUrl} 
+            alt="Full Report Preview" 
+            style={{
+              maxHeight: '90vh',
+              maxWidth: '90vw',
+              borderRadius: 'var(--radius-sm)',
+              boxShadow: '0 10px 40px rgba(0,0,0,0.8)',
+              objectFit: 'contain'
+            }} 
+          />
+          <button 
+            onClick={() => setShowLightbox(false)}
+            style={{
+              position: 'absolute',
+              top: '1.5rem',
+              right: '1.5rem',
+              background: 'rgba(255,255,255,0.1)',
+              border: 'none',
+              borderRadius: '50%',
+              width: '40px',
+              height: '40px',
+              color: 'white',
+              fontSize: '1.5rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
     </div>
   );
 };

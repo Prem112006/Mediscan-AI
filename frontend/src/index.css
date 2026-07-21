@@ -1,30 +1,30 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
 
 :root {
-  /* Premium Pure White and Black combination theme */
-  --bg-main: #ffffff;        /* Pure White background */
-  --bg-card: #ffffff;        /* Pure White card */
-  --bg-card-hover: #f4f4f5;  /* Light zinc hover */
-  --border-color: #e4e4e7;   /* Zinc 200 border */
-  --border-glow: rgba(0, 0, 0, 0.03);
+  /* Premium Pure Black & White Clinical Theme */
+  --bg-main: #000000;        /* Pure Black background */
+  --bg-card: #09090b;        /* Zinc 950 card background */
+  --bg-card-hover: #18181b;  /* Zinc 900 hover card */
+  --border-color: #27272a;   /* Zinc 800 border */
+  --border-glow: rgba(255, 255, 255, 0.05);
   
-  --primary: #000000;        /* Pure Black */
-  --primary-glow: rgba(0, 0, 0, 0.08);
-  --primary-hover: #18181b;  /* Zinc 900 */
+  --primary: #ffffff;        /* Pure White */
+  --primary-glow: rgba(255, 255, 255, 0.15);
+  --primary-hover: #e4e4e7;  /* Zinc 200 */
   
-  --secondary: #27272a;      /* Zinc 800 */
-  --secondary-glow: rgba(0, 0, 0, 0.05);
-  --secondary-hover: #3f3f46; /* Zinc 700 */
+  --secondary: #e4e4e7;      /* Zinc 200 */
+  --secondary-glow: rgba(255, 255, 255, 0.06);
+  --secondary-hover: #d4d4d8;
   
-  --accent: #71717a;         /* Zinc 500 */
-  --accent-glow: rgba(0, 0, 0, 0.02);
+  --accent: #f59e0b;         /* Amber warning */
+  --accent-glow: rgba(245, 158, 11, 0.25);
   
-  --danger: #ef4444;         /* Red for clear clinical alerts */
-  --danger-glow: rgba(239, 68, 68, 0.1);
+  --danger: #ef4444;         /* Red clinical alerts */
+  --danger-glow: rgba(239, 68, 68, 0.25);
   
-  --text-main: #09090b;      /* Zinc 950 */
-  --text-muted: #71717a;     /* Zinc 500 */
-  --text-dark: #a1a1aa;      /* Zinc 400 */
+  --text-main: #ffffff;      /* Pure White text */
+  --text-muted: #a1a1aa;     /* Zinc 400 muted text */
+  --text-dark: #71717a;      /* Zinc 500 dark text */
   
   --font-family: 'Outfit', sans-serif;
   --radius-sm: 8px;
@@ -60,11 +60,11 @@ body {
   background: var(--bg-main);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.15);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.25);
+  background: rgba(255, 255, 255, 0.3);
 }
 
 a {
@@ -77,8 +77,8 @@ a {
 .app-container {
   display: flex;
   min-height: 100vh;
-  background: radial-gradient(circle at 10% 20%, rgba(0, 0, 0, 0.02) 0%, transparent 40%),
-              radial-gradient(circle at 90% 80%, rgba(0, 0, 0, 0.01) 0%, transparent 40%);
+  background: radial-gradient(circle at 10% 20%, rgba(255, 255, 255, 0.015) 0%, transparent 40%),
+              radial-gradient(circle at 90% 80%, rgba(255, 255, 255, 0.02) 0%, transparent 40%);
 }
 
 .main-content {
@@ -104,19 +104,19 @@ a {
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border-color);
   border-radius: var(--radius-md);
-  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.3);
   transition: var(--transition);
 }
 
 .glass-panel:hover {
-  border-color: rgba(0, 0, 0, 0.14);
-  box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.09);
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.4);
 }
 
 .glass-panel.interactive:hover {
   transform: translateY(-4px);
   background: var(--bg-card-hover);
-  border-color: var(--primary-glow);
+  border-color: var(--primary);
 }
 
 /* Typography & Headers */
@@ -157,7 +157,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .btn-primary {
   background: var(--primary);
-  color: #ffffff;
+  color: #000000;
   box-shadow: 0 4px 12px -3px var(--primary-glow);
 }
 .btn-primary:hover {
@@ -170,12 +170,12 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .btn-secondary {
-  background: #ffffff;
+  background: rgba(255, 255, 255, 0.05);
   color: var(--text-main);
   border: 1px solid var(--border-color);
 }
 .btn-secondary:hover {
-  background: #f4f4f5;
+  background: rgba(255, 255, 255, 0.1);
   border-color: var(--text-muted);
   transform: translateY(-2px);
 }
@@ -203,7 +203,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .btn-manus {
   background: var(--primary);
-  color: white;
+  color: #000000;
   border: 1px solid var(--primary-hover);
   box-shadow: 0 4px 12px -3px var(--primary-glow);
 }
@@ -236,7 +236,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .form-control {
   font-family: var(--font-family);
-  background: #ffffff;
+  background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--border-color);
   color: var(--text-main);
   padding: 0.75rem 1rem;
@@ -249,8 +249,8 @@ h1, h2, h3, h4, h5, h6 {
 
 .form-control:focus {
   border-color: var(--primary);
-  background: #ffffff;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+  background: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.15);
 }
 
 /* Badge tags */
@@ -262,10 +262,10 @@ h1, h2, h3, h4, h5, h6 {
   font-size: 0.75rem;
   font-weight: 600;
 }
-.badge-normal { background: rgba(0, 0, 0, 0.05); color: var(--primary); border: 1px solid var(--border-color); }
-.badge-warning { background: rgba(0, 0, 0, 0.03); color: var(--accent); border: 1px solid var(--border-color); }
-.badge-danger { background: rgba(239, 68, 68, 0.1); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.2); }
-.badge-info { background: rgba(0, 0, 0, 0.04); color: var(--secondary); border: 1px solid var(--border-color); }
+.badge-normal { background: rgba(255, 255, 255, 0.08); color: var(--text-main); border: 1px solid var(--border-color); }
+.badge-warning { background: rgba(245, 158, 11, 0.12); color: var(--accent); border: 1px solid rgba(245, 158, 11, 0.25); }
+.badge-danger { background: rgba(239, 68, 68, 0.12); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.25); }
+.badge-info { background: rgba(255, 255, 255, 0.06); color: var(--secondary); border: 1px solid var(--border-color); }
 
 /* Custom scanner animations */
 .scanner-container {
@@ -315,11 +315,11 @@ h1, h2, h3, h4, h5, h6 {
   animation: slide-in 0.3s ease-out;
 }
 .toast-success {
-  background: #000000;
-  border: 1px solid var(--border-color);
+  background: #121826;
+  border: 1px solid var(--primary);
 }
 .toast-error {
-  background: #000000;
+  background: #121826;
   border: 1px solid var(--danger);
 }
 

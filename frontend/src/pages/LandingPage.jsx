@@ -10,7 +10,7 @@ const LandingPage = () => {
     <div style={{
       minHeight: '100vh',
       backgroundColor: 'var(--bg-main)',
-      backgroundImage: 'radial-gradient(circle at 50% -20%, rgba(0, 0, 0, 0.03) 0%, transparent 60%), radial-gradient(circle at 10% 80%, rgba(0, 0, 0, 0.02) 0%, transparent 45%)',
+      backgroundImage: 'radial-gradient(circle at 50% -20%, rgba(255, 255, 255, 0.03) 0%, transparent 60%), radial-gradient(circle at 10% 80%, rgba(255, 255, 255, 0.01) 0%, transparent 45%)',
       fontFamily: 'Outfit, sans-serif'
     }}>
       {/* Top Navbar */}
@@ -31,7 +31,7 @@ const LandingPage = () => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: 'white',
+            color: '#000000',
             fontWeight: '800'
           }}>
             M
