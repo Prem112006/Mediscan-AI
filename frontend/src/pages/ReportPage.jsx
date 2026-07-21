@@ -14,12 +14,107 @@ import {
   Loader2
 } from 'lucide-react';
 
+const UI_STRINGS = {
+  English: {
+    detectedReportType: "Detected Report Type",
+    patientDetails: "Patient Details",
+    name: "Name",
+    age: "Age",
+    gender: "Gender",
+    patientId: "Patient ID",
+    dob: "Date of Birth",
+    reportDate: "Date of Report",
+    doctorClinicInfo: "Doctor & Clinic Information",
+    physicianName: "Physician Name",
+    specialty: "Specialty",
+    contactInfo: "Contact Info",
+    executiveSummary: "Executive Summary",
+    medicalHistory: "Medical History",
+    presentingSymptoms: "Presenting Symptoms",
+    familyHistory: "Family History",
+    lifestyleInfo: "Lifestyle Information",
+    labBiomarkers: "Laboratory Test Biomarkers",
+    testColumn: "Biomarker / Test",
+    valueColumn: "Value",
+    refRangeColumn: "Ref Range",
+    statusColumn: "Status",
+    keyFindings: "Key Findings",
+    doctorNotes: "Doctor Notes & Clinical Remarks",
+    criticalAlerts: "Critical Alerts",
+    noAlerts: "No critical alerts detected.",
+    recommendations: "Clinical Recommendations"
+  },
+  Hindi: {
+    detectedReportType: "पहचाना गया रिपोर्ट प्रकार",
+    patientDetails: "मरीज का विवरण",
+    name: "नाम",
+    age: "उम्र",
+    gender: "लिंग",
+    patientId: "मरीज आईडी",
+    dob: "जन्म तिथि",
+    reportDate: "रिपोर्ट की तिथि",
+    doctorClinicInfo: "डॉक्टर और क्लिनिक की जानकारी",
+    physicianName: "चिकित्सक का नाम",
+    specialty: "विशेषज्ञता",
+    contactInfo: "संपर्क जानकारी",
+    executiveSummary: "मुख्य सारांश",
+    medicalHistory: "चिकित्सा इतिहास",
+    presentingSymptoms: "वर्तमान लक्षण",
+    familyHistory: "पारिवारिक इतिहास",
+    lifestyleInfo: "जीवनशैली की जानकारी",
+    labBiomarkers: "प्रयोगशाला परीक्षण बायोमार्कर",
+    testColumn: "बायोमार्कर / परीक्षण",
+    valueColumn: "मान",
+    refRangeColumn: "संदर्भ सीमा",
+    statusColumn: "स्थिति",
+    keyFindings: "प्रमुख निष्कर्ष",
+    doctorNotes: "डॉक्टर के नोट्स और नैदानिक टिप्पणियां",
+    criticalAlerts: "महत्वपूर्ण अलर्ट",
+    noAlerts: "कोई महत्वपूर्ण अलर्ट नहीं पाया गया।",
+    recommendations: "नैदानिक सिफारिशें"
+  },
+  Gujarati: {
+    detectedReportType: "ઓળખાયેલ રિપોર્ટ પ્રકાર",
+    patientDetails: "દર્દીની વિગતો",
+    name: "નામ",
+    age: "ઉંમર",
+    gender: "જાતિ",
+    patientId: "દર્દી આઈડી",
+    dob: "જન્મ તારીખ",
+    reportDate: "રિપોર્ટની તારીખ",
+    doctorClinicInfo: "તબીબ અને ક્લિનિક માહિતી",
+    physicianName: "તબીબનું નામ",
+    specialty: "સ્પેશિયાલિટી",
+    contactInfo: "સંપર્ક માહિતી",
+    executiveSummary: "મુખ્ય સારાંશ",
+    medicalHistory: "તબીબી ઇતિહાસ",
+    presentingSymptoms: "હાલના લક્ષણો",
+    familyHistory: "કૌટુંબિક ઇતિહાસ",
+    lifestyleInfo: "જીવનશૈલી માહિતી",
+    labBiomarkers: "લેબોરેટરી ટેસ્ટ બાયોમાર્કર્સ",
+    testColumn: "બાયોમાર્કર / ટેસ્ટ",
+    valueColumn: "મૂલ્ય",
+    refRangeColumn: "સંદર્ભ સીમા",
+    statusColumn: "સ્થિતિ",
+    keyFindings: "મુખ્ય તારણો",
+    doctorNotes: "તબીબની નોંધ અને ક્લિનિકલ ટિપ્પણીઓ",
+    criticalAlerts: "મહત્વપૂર્ણ ચેતવણીઓ",
+    noAlerts: "કોઈ મહત્વપૂર્ણ ચેતવણીઓ મળી નથી.",
+    recommendations: "ક્લિનિકલ ભલામણો"
+  }
+};
+
 const ReportPage = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [analyzeProgress, setAnalyzeProgress] = useState(0);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
+
+  // Multi-Language state management
+  const [selectedLanguage, setSelectedLanguage] = useState('English');
+  const [originalResult, setOriginalResult] = useState(null);
+  const [translatedResults, setTranslatedResults] = useState({});
 
   // Active view tab: 'summary', 'findings', 'insights'
   const [activeTab, setActiveTab] = useState('summary');
@@ -75,9 +170,9 @@ const ReportPage = () => {
     // Visual loading effect increments
     const progressInterval = setInterval(() => {
       setAnalyzeProgress((prev) => {
-        if (prev >= 90) {
+        if (prev >= 80) {
           clearInterval(progressInterval);
-          return 90;
+          return 80;
         }
         return prev + 20;
       });
@@ -86,15 +181,32 @@ const ReportPage = () => {
     try {
       const res = await api.analyzeReport(formData);
       clearInterval(progressInterval);
-      setAnalyzeProgress(100);
 
-      setTimeout(() => {
-        if (res.success) {
-          setResult(res.data);
+      if (res.success) {
+        let finalResult = res.data;
+        let transCache = {};
+
+        if (selectedLanguage !== 'English') {
+          setAnalyzeProgress(90);
+          const transRes = await api.translateReport(finalResult, selectedLanguage);
+          if (transRes.success) {
+            finalResult = transRes.data;
+            transCache = { [selectedLanguage]: transRes.data };
+          }
         }
+
+        setAnalyzeProgress(100);
+        setTimeout(() => {
+          setResult(finalResult);
+          setOriginalResult(res.data);
+          setTranslatedResults(transCache);
+          setLoading(false);
+          setAnalyzeProgress(0);
+        }, 500);
+      } else {
         setLoading(false);
         setAnalyzeProgress(0);
-      }, 500);
+      }
 
     } catch (err) {
       clearInterval(progressInterval);
@@ -104,9 +216,57 @@ const ReportPage = () => {
     }
   };
 
+  const handleLanguageChange = async (lang) => {
+    setSelectedLanguage(lang);
+    setError('');
+
+    if (lang === 'English') {
+      if (originalResult) {
+        setResult(originalResult);
+      }
+      return;
+    }
+
+    // Use cached translation if available
+    if (translatedResults[lang]) {
+      setResult(translatedResults[lang]);
+      return;
+    }
+
+    setLoading(true);
+    setAnalyzeProgress(30);
+    try {
+      const reportToTranslate = originalResult || result;
+      setAnalyzeProgress(70);
+      const res = await api.translateReport(reportToTranslate, lang);
+      setAnalyzeProgress(100);
+      
+      setTimeout(() => {
+        if (res.success) {
+          setResult(res.data);
+          setTranslatedResults(prev => ({
+            ...prev,
+            [lang]: res.data
+          }));
+        }
+        setLoading(false);
+        setAnalyzeProgress(0);
+      }, 400);
+    } catch (err) {
+      setLoading(false);
+      setAnalyzeProgress(0);
+      setError(err.message || `Failed to translate report to ${lang}.`);
+      setSelectedLanguage('English'); // Fall back to English
+      if (originalResult) setResult(originalResult);
+    }
+  };
+
   const handleReset = () => {
     setSelectedFile(null);
     setResult(null);
+    setOriginalResult(null);
+    setTranslatedResults({});
+    setSelectedLanguage('English');
     setError('');
     setActiveTab('summary');
   };
@@ -257,25 +417,52 @@ const ReportPage = () => {
         <div className="col-7">
           <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', height: '100%' }}>
             
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
-              <div style={{
-                background: result ? 'rgba(99, 102, 241, 0.1)' : 'rgba(255, 255, 255, 0.03)',
-                color: result ? 'var(--secondary)' : 'var(--text-dark)',
-                width: '38px',
-                height: '38px',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <Eye size={20} />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{
+                  background: result ? 'rgba(99, 102, 241, 0.1)' : 'rgba(255, 255, 255, 0.03)',
+                  color: result ? 'var(--secondary)' : 'var(--text-dark)',
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <Eye size={20} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: '700' }}>Document Insights</h3>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
+                    {result ? 'Analysis report finalized.' : 'Awaiting document upload...'}
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: '700' }}>Document Insights</h3>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>
-                  {result ? 'Analysis report finalized.' : 'Awaiting document upload...'}
-                </p>
-              </div>
+
+              {result && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <label htmlFor="language-select" style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-muted)' }}>Language:</label>
+                  <select
+                    id="language-select"
+                    value={selectedLanguage}
+                    onChange={(e) => handleLanguageChange(e.target.value)}
+                    style={{
+                      background: 'rgba(25, 30, 45, 0.95)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: 'var(--radius-sm)',
+                      padding: '0.35rem 0.6rem',
+                      color: '#ffffff',
+                      fontSize: '0.85rem',
+                      outline: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value="English">English</option>
+                    <option value="Hindi">Hindi (हिंदी)</option>
+                    <option value="Gujarati">Gujarati (ગુજરાતી)</option>
+                  </select>
+                </div>
+              )}
             </div>
 
             {!result ? (
@@ -321,7 +508,7 @@ const ReportPage = () => {
                     borderRadius: 'var(--radius-sm)',
                   }}>
                     <div>
-                      <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', opacity: 0.8, fontWeight: '700' }}>Detected Report Type</span>
+                      <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', opacity: 0.8, fontWeight: '700' }}>{UI_STRINGS[selectedLanguage].detectedReportType}</span>
                       <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: '#ffffff', margin: 0 }}>{result.reportType || 'Medical Report'}</h3>
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -346,14 +533,14 @@ const ReportPage = () => {
                     result.patientDetails.reportDate !== 'Not Available'
                   ) && (
                     <div className="glass-panel" style={{ padding: '1.25rem' }}>
-                      <h4 style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.75rem', fontWeight: '700' }}>Patient Details</h4>
+                      <h4 style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.75rem', fontWeight: '700' }}>{UI_STRINGS[selectedLanguage].patientDetails}</h4>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.75rem', fontSize: '0.9rem' }}>
-                        <div><strong>Name:</strong> {result.patientDetails.name || 'Not Available'}</div>
-                        <div><strong>Age:</strong> {result.patientDetails.age || 'Not Available'}</div>
-                        <div><strong>Gender:</strong> {result.patientDetails.gender || 'Not Available'}</div>
-                        <div><strong>Patient ID:</strong> {result.patientDetails.patientID || 'Not Available'}</div>
-                        <div><strong>Date of Birth:</strong> {result.patientDetails.dob || 'Not Available'}</div>
-                        <div><strong>Date of Report:</strong> {result.patientDetails.reportDate || 'Not Available'}</div>
+                        <div><strong>{UI_STRINGS[selectedLanguage].name}:</strong> {result.patientDetails.name || 'Not Available'}</div>
+                        <div><strong>{UI_STRINGS[selectedLanguage].age}:</strong> {result.patientDetails.age || 'Not Available'}</div>
+                        <div><strong>{UI_STRINGS[selectedLanguage].gender}:</strong> {result.patientDetails.gender || 'Not Available'}</div>
+                        <div><strong>{UI_STRINGS[selectedLanguage].patientId}:</strong> {result.patientDetails.patientID || 'Not Available'}</div>
+                        <div><strong>{UI_STRINGS[selectedLanguage].dob}:</strong> {result.patientDetails.dob || 'Not Available'}</div>
+                        <div><strong>{UI_STRINGS[selectedLanguage].reportDate}:</strong> {result.patientDetails.reportDate || 'Not Available'}</div>
                       </div>
                     </div>
                   )}
@@ -365,11 +552,11 @@ const ReportPage = () => {
                     result.doctorDetails.contact !== 'Not Available'
                   ) && (
                     <div className="glass-panel" style={{ padding: '1.25rem' }}>
-                      <h4 style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.75rem', fontWeight: '700' }}>Doctor & Clinic Information</h4>
+                      <h4 style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.75rem', fontWeight: '700' }}>{UI_STRINGS[selectedLanguage].doctorClinicInfo}</h4>
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.75rem', fontSize: '0.9rem' }}>
-                        <div><strong>Physician Name:</strong> {result.doctorDetails.physicianName || 'Not Available'}</div>
-                        <div><strong>Specialty:</strong> {result.doctorDetails.specialty || 'Not Available'}</div>
-                        <div><strong>Contact Info:</strong> {result.doctorDetails.contact || 'Not Available'}</div>
+                        <div><strong>{UI_STRINGS[selectedLanguage].physicianName}:</strong> {result.doctorDetails.physicianName || 'Not Available'}</div>
+                        <div><strong>{UI_STRINGS[selectedLanguage].specialty}:</strong> {result.doctorDetails.specialty || 'Not Available'}</div>
+                        <div><strong>{UI_STRINGS[selectedLanguage].contactInfo}:</strong> {result.doctorDetails.contact || 'Not Available'}</div>
                       </div>
                     </div>
                   )}
@@ -392,7 +579,7 @@ const ReportPage = () => {
                   {/* Executive Summary Card */}
                   {result.summary && (
                     <div className="glass-panel" style={{ padding: '1.25rem' }}>
-                      <h4 style={{ fontSize: '0.9rem', color: 'var(--primary)', fontWeight: '700', marginBottom: '0.5rem' }}>Executive Summary</h4>
+                      <h4 style={{ fontSize: '0.9rem', color: 'var(--primary)', fontWeight: '700', marginBottom: '0.5rem' }}>{UI_STRINGS[selectedLanguage].executiveSummary}</h4>
                       <p style={{ color: 'var(--text-main)', fontSize: '0.9rem', lineHeight: '1.5' }}>{result.summary}</p>
                     </div>
                   )}
@@ -400,7 +587,7 @@ const ReportPage = () => {
                   {/* Medical History Section */}
                   {result.medicalHistory && result.medicalHistory.length > 0 && (
                     <div className="glass-panel" style={{ padding: '1.25rem' }}>
-                      <h4 style={{ fontSize: '0.9rem', color: 'var(--secondary)', fontWeight: '700', marginBottom: '0.5rem' }}>Medical History</h4>
+                      <h4 style={{ fontSize: '0.9rem', color: 'var(--secondary)', fontWeight: '700', marginBottom: '0.5rem' }}>{UI_STRINGS[selectedLanguage].medicalHistory}</h4>
                       <ul style={{ paddingLeft: '1.25rem', fontSize: '0.9rem', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                         {result.medicalHistory.map((item, idx) => <li key={idx}>{item}</li>)}
                       </ul>
@@ -410,7 +597,7 @@ const ReportPage = () => {
                   {/* Symptoms Section */}
                   {result.symptoms && result.symptoms.length > 0 && (
                     <div className="glass-panel" style={{ padding: '1.25rem' }}>
-                      <h4 style={{ fontSize: '0.9rem', color: 'var(--secondary)', fontWeight: '700', marginBottom: '0.5rem' }}>Presenting Symptoms</h4>
+                      <h4 style={{ fontSize: '0.9rem', color: 'var(--secondary)', fontWeight: '700', marginBottom: '0.5rem' }}>{UI_STRINGS[selectedLanguage].presentingSymptoms}</h4>
                       <ul style={{ paddingLeft: '1.25rem', fontSize: '0.9rem', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                         {result.symptoms.map((item, idx) => <li key={idx}>{item}</li>)}
                       </ul>
@@ -420,7 +607,7 @@ const ReportPage = () => {
                   {/* Family History Section */}
                   {result.familyHistory && result.familyHistory.length > 0 && (
                     <div className="glass-panel" style={{ padding: '1.25rem' }}>
-                      <h4 style={{ fontSize: '0.9rem', color: 'var(--secondary)', fontWeight: '700', marginBottom: '0.5rem' }}>Family History</h4>
+                      <h4 style={{ fontSize: '0.9rem', color: 'var(--secondary)', fontWeight: '700', marginBottom: '0.5rem' }}>{UI_STRINGS[selectedLanguage].familyHistory}</h4>
                       <ul style={{ paddingLeft: '1.25rem', fontSize: '0.9rem', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                         {result.familyHistory.map((item, idx) => <li key={idx}>{item}</li>)}
                       </ul>
@@ -430,7 +617,7 @@ const ReportPage = () => {
                   {/* Lifestyle Information Section */}
                   {result.lifestyle && result.lifestyle.length > 0 && (
                     <div className="glass-panel" style={{ padding: '1.25rem' }}>
-                      <h4 style={{ fontSize: '0.9rem', color: 'var(--secondary)', fontWeight: '700', marginBottom: '0.5rem' }}>Lifestyle Information</h4>
+                      <h4 style={{ fontSize: '0.9rem', color: 'var(--secondary)', fontWeight: '700', marginBottom: '0.5rem' }}>{UI_STRINGS[selectedLanguage].lifestyleInfo}</h4>
                       <ul style={{ paddingLeft: '1.25rem', fontSize: '0.9rem', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                         {result.lifestyle.map((item, idx) => <li key={idx}>{item}</li>)}
                       </ul>
@@ -440,15 +627,15 @@ const ReportPage = () => {
                   {/* Biomarkers / Lab Results Table */}
                   {isLabReport && result.hasLabValues && result.labResults && result.labResults.length > 0 && (
                     <div className="glass-panel" style={{ padding: '1.25rem' }}>
-                      <h4 style={{ fontSize: '0.9rem', color: 'var(--primary)', fontWeight: '700', marginBottom: '0.75rem' }}>Laboratory Test Biomarkers</h4>
+                      <h4 style={{ fontSize: '0.9rem', color: 'var(--primary)', fontWeight: '700', marginBottom: '0.75rem' }}>{UI_STRINGS[selectedLanguage].labBiomarkers}</h4>
                       <div style={{ overflowX: 'auto' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', textAlign: 'left' }}>
                           <thead>
                             <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
-                              <th style={{ padding: '0.5rem', fontWeight: '600' }}>Biomarker / Test</th>
-                              <th style={{ padding: '0.5rem', fontWeight: '600' }}>Value</th>
-                              <th style={{ padding: '0.5rem', fontWeight: '600' }}>Ref Range</th>
-                              <th style={{ padding: '0.5rem', fontWeight: '600' }}>Status</th>
+                              <th style={{ padding: '0.5rem', fontWeight: '600' }}>{UI_STRINGS[selectedLanguage].testColumn}</th>
+                              <th style={{ padding: '0.5rem', fontWeight: '600' }}>{UI_STRINGS[selectedLanguage].valueColumn}</th>
+                              <th style={{ padding: '0.5rem', fontWeight: '600' }}>{UI_STRINGS[selectedLanguage].refRangeColumn}</th>
+                              <th style={{ padding: '0.5rem', fontWeight: '600' }}>{UI_STRINGS[selectedLanguage].statusColumn}</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -473,7 +660,7 @@ const ReportPage = () => {
                   {/* Key Findings Card */}
                   {result.keyFindings && result.keyFindings.length > 0 && (
                     <div className="glass-panel" style={{ padding: '1.25rem' }}>
-                      <h4 style={{ fontSize: '0.9rem', color: 'var(--secondary)', fontWeight: '700', marginBottom: '0.5rem' }}>Key Findings</h4>
+                      <h4 style={{ fontSize: '0.9rem', color: 'var(--secondary)', fontWeight: '700', marginBottom: '0.5rem' }}>{UI_STRINGS[selectedLanguage].keyFindings}</h4>
                       <ul style={{ paddingLeft: '1.25rem', fontSize: '0.9rem', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                         {result.keyFindings.map((item, idx) => (
                           <li key={idx}>
@@ -493,7 +680,7 @@ const ReportPage = () => {
                   {/* Doctor Notes Section */}
                   {result.doctorNotes && result.doctorNotes.length > 0 && (
                     <div className="glass-panel" style={{ padding: '1.25rem' }}>
-                      <h4 style={{ fontSize: '0.9rem', color: 'var(--secondary)', fontWeight: '700', marginBottom: '0.5rem' }}>Doctor Notes & Clinical Remarks</h4>
+                      <h4 style={{ fontSize: '0.9rem', color: 'var(--secondary)', fontWeight: '700', marginBottom: '0.5rem' }}>{UI_STRINGS[selectedLanguage].doctorNotes}</h4>
                       <ul style={{ paddingLeft: '1.25rem', fontSize: '0.9rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                         {result.doctorNotes.map((item, idx) => <li key={idx}>{item}</li>)}
                       </ul>
@@ -503,7 +690,7 @@ const ReportPage = () => {
                   {/* Critical Alerts Section */}
                   <div className="glass-panel" style={{ padding: '1.25rem', borderColor: result.hasCriticalFindings ? 'var(--danger-glow)' : 'var(--border-color)' }}>
                     <h4 style={{ fontSize: '0.9rem', color: result.hasCriticalFindings ? 'var(--danger)' : 'var(--primary)', fontWeight: '700', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                      <ShieldAlert size={16} /> Critical Alerts
+                      <ShieldAlert size={16} /> {UI_STRINGS[selectedLanguage].criticalAlerts}
                     </h4>
                     {result.hasCriticalFindings && result.criticalAlerts && result.criticalAlerts.length > 0 && !result.criticalAlerts[0]?.toLowerCase()?.includes('no critical alerts') ? (
                       <ul style={{ paddingLeft: '1.25rem', fontSize: '0.9rem', color: 'var(--danger)', display: 'flex', flexDirection: 'column', gap: '0.35rem', fontWeight: '500' }}>
@@ -511,7 +698,7 @@ const ReportPage = () => {
                       </ul>
                     ) : (
                       <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', fontStyle: 'italic' }}>
-                        No critical alerts detected.
+                        {UI_STRINGS[selectedLanguage].noAlerts}
                       </p>
                     )}
                   </div>
@@ -519,7 +706,7 @@ const ReportPage = () => {
                   {/* Recommendations Section (Hide completely if empty) */}
                   {result.recommendations && (Array.isArray(result.recommendations) ? result.recommendations.length > 0 : result.recommendations.trim() !== '') && (
                     <div className="glass-panel" style={{ padding: '1.25rem' }}>
-                      <h4 style={{ fontSize: '0.9rem', color: 'var(--primary)', fontWeight: '700', marginBottom: '0.5rem' }}>Clinical Recommendations</h4>
+                      <h4 style={{ fontSize: '0.9rem', color: 'var(--primary)', fontWeight: '700', marginBottom: '0.5rem' }}>{UI_STRINGS[selectedLanguage].recommendations}</h4>
                       {Array.isArray(result.recommendations) ? (
                         <ul style={{ paddingLeft: '1.25rem', fontSize: '0.9rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
                           {result.recommendations.map((item, idx) => <li key={idx}>{item}</li>)}

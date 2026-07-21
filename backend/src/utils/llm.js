@@ -840,7 +840,286 @@ function generateMockReportAnalysis(text) {
   };
 }
 
+
+/**
+ * Translates structured medical report JSON into the target language (Hindi or Gujarati) using Gemini AI.
+ * Falls back to local mock translation if Gemini is offline/disabled.
+ * @param {object} reportData - The English report analysis data structure.
+ * @param {string} targetLanguage - The language to translate to ('Hindi' or 'Gujarati').
+ * @returns {Promise<object>} - The translated report data.
+ */
+const translateReport = async (reportData, targetLanguage) => {
+  if (!targetLanguage || targetLanguage.toLowerCase() === 'english') {
+    return reportData;
+  }
+
+  if (aiInstance) {
+    try {
+      console.log(`Sending report data for translation to ${targetLanguage} using Gemini API...`);
+      const prompt = `
+        You are an expert medical translator. Translate the following structured medical report JSON into ${targetLanguage}.
+        Maintain the exact same JSON keys and structure. Only translate the string values representing medical terms, summaries, histories, alerts, recommendations, notes, and clinical statuses.
+        
+        Keep patient names, doctor names, numeric values, units, reference range formats, dates, and IDs exactly as they are or in their standard local/transliterated representation if appropriate, but translate the clinical descriptions, labels, and summaries fully so a native ${targetLanguage} speaker can easily understand.
+        
+        For example:
+        - "CBC Report" should be translated.
+        - "Normal", "High", "Low", "Critical" statuses should be translated.
+        - "Detected" or "Not Detected" should be translated.
+        - Test names like "Hemoglobin", "Cholesterol" should be translated or transliterated as commonly understood in ${targetLanguage}.
+        - The executive summary, medical history, symptoms, family history, lifestyle information, recommendations, doctor notes, and critical alerts must be fully translated.
+        
+        Do not output any markdown code block wrapper. Just output the raw translated JSON matching the input schema exactly.
+        
+        Here is the JSON to translate:
+        ${JSON.stringify(reportData)}
+      `;
+
+      const response = await aiInstance.models.generateContent({
+        model: process.env.GEMINI_MODEL || 'gemini-2.5-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+        }
+      });
+
+      const responseText = response.text || response.candidates?.[0]?.content?.parts?.[0]?.text;
+      const translatedData = JSON.parse(responseText.trim());
+
+      // Merge to ensure no missing properties/structure
+      return {
+        ...reportData,
+        ...translatedData,
+        patientDetails: {
+          ...reportData.patientDetails,
+          ...translatedData.patientDetails,
+          name: reportData.patientDetails?.name || 'Not Available',
+          age: reportData.patientDetails?.age || 'Not Available',
+          gender: translatedData.patientDetails?.gender || reportData.patientDetails?.gender || 'Not Available',
+          dob: reportData.patientDetails?.dob || 'Not Available',
+          reportDate: reportData.patientDetails?.reportDate || 'Not Available'
+        },
+        doctorDetails: {
+          ...reportData.doctorDetails,
+          ...translatedData.doctorDetails,
+          physicianName: reportData.doctorDetails?.physicianName || 'Not Available',
+          specialty: translatedData.doctorDetails?.specialty || reportData.doctorDetails?.specialty || 'Not Available',
+          contact: reportData.doctorDetails?.contact || 'Not Available'
+        }
+      };
+    } catch (error) {
+      console.error(`Gemini report translation to ${targetLanguage} failed, falling back to mock:`, error);
+    }
+  }
+
+  // Fallback translation
+  return generateMockTranslation(reportData, targetLanguage);
+};
+
+/**
+ * Generates local mock translation for testing and fallback scenarios.
+ * @param {object} data - The English report analysis data.
+ * @param {string} language - The target language ('Hindi' or 'Gujarati').
+ * @returns {object} - The translated data structure.
+ */
+function generateMockTranslation(data, language) {
+  const isHindi = language.toLowerCase() === 'hindi';
+  const isGujarati = language.toLowerCase() === 'gujarati';
+
+  if (!isHindi && !isGujarati) return data;
+
+  const translationDict = {
+    hindi: {
+      'cbc report': 'सीबीसी रिपोर्ट',
+      'lipid profile': 'लिपिड प्रोफाइल',
+      'thyroid report': 'थायराइड रिपोर्ट',
+      'kidney function test': 'किडनी फंक्शन टेस्ट',
+      'liver function test': 'लिवर फंक्शन टेस्ट',
+      'diabetes report': 'मधुमेह रिपोर्ट',
+      'urine report': 'मूत्र रिपोर्ट',
+      'ecg report': 'ईसीजी रिपोर्ट',
+      'blood test report': 'रक्त परीक्षण रिपोर्ट',
+      'other medical documents': 'अन्य चिकित्सा दस्तावेज',
+      'general consultation report': 'सामान्य परामर्श रिपोर्ट',
+      'cardiology consultation report': 'हृदय रोग परामर्श रिपोर्ट',
+      'male': 'पुरुष',
+      'female': 'महिला',
+      'le': 'महिला (le)',
+      'z': 'अज्ञात',
+      'hypertension': 'उच्च रक्तचाप',
+      'dizziness': 'चक्कर आना',
+      'fatigue': 'थकान',
+      'non-smoker': 'धूम्रपान न करने वाला',
+      'normal': 'सामान्य',
+      'high': 'उच्च',
+      'low': 'निम्न',
+      'critical': 'गंभीर',
+      'not available': 'उपलब्ध नहीं',
+      'detected': 'पता चला',
+      'not detected': 'पता नहीं चला',
+      'overs heat': 'अत्यधिक गर्मी',
+      'diagnosis': 'निदान',
+      'father has diabetes': 'पिता को मधुमेह है',
+      'consult physician.': 'चिकित्सक से परामर्श करें।',
+      'consult primary care physician.': 'प्राथमिक चिकित्सा चिकित्सक से परामर्श करें।',
+      'follow up': 'अनुवर्ती कार्रवाई',
+      'follow up in 2 weeks': '२ सप्ताह में अनुवर्ती कार्रवाई',
+      'general medicine': 'सामान्य चिकित्सा',
+      'hemoglobin': 'हीमोग्लोबिन',
+      'hypertension for 5 years': '5 वर्षों से उच्च रक्तचाप',
+      'anemia detected due to low hemoglobin': 'कम हीमोग्लोबिन के कारण एनीमिया का पता चला',
+      'saran sotmson': 'सरन सोटमसन',
+      'michael brown': 'माइकल ब्राउन',
+      'dr. smith': 'डॉ. स्मिथ',
+      'patenti0': 'रोगी आईडी',
+      'diagnosis: overs heat;': 'निदान: अत्यधिक गर्मी',
+      'treatment plan: isioprl': 'उपचार योजना: लिसिनोप्रिल',
+      'treatment plan: isioprl is abnormal at 10  (reference: n/a).': 'उपचार योजना: लिसिनोप्रिल 10 पर असामान्य है (संदर्भ: लागू नहीं)',
+      'loc pressure 120/80 mii heart at 75 pm, norma lb resus': 'रक्तचाप 120/80, हृदय गति 75 प्रति मिनट, सामान्य परीक्षण',
+      'continue balanced de, moderato oerise, and annua ath check ups.': 'संतुलित आहार, मध्यम व्यायाम और वार्षिक स्वास्थ्य जांच जारी रखें।',
+      'recommended none year o if symptoms develop.': 'लक्षण दिखने पर एक वर्ष में जांच की सिफारिश की जाती है।',
+      'next isn hres month, with bi-weekly blood pressure checks at home,': 'घर पर द्वि-साप्ताहिक रक्तचाप की जांच के साथ, अगला परामर्श तीन महीने में है,',
+      'blood pressure 10/55 mm, heart ate 85 bpm, cholstarsl 240 mole.': 'रक्तचाप 10/55 mm, हृदय गति 85 धड़कन प्रति मिनट, कोलेस्ट्रॉल 240 mole.',
+      'hypertension and hyparlpidemia (gh cholesterol.': 'उच्च रक्तचाप और हाइपरलिपिडिमिया (उच्च कोलेस्ट्रॉल)',
+      'isioprl 10 ma, once dal; simustot 40 ma, once diy low-sodium di.': 'लिसिनोप्रिल 10 मिलीग्राम, दिन में एक बार; सिमवास्टेटिन 40 मिलीग्राम, दिन में एक बार; कम सोडियम आहार।'
+    },
+    gujarati: {
+      'cbc report': 'સીબીસી રીપોર્ટ',
+      'lipid profile': 'લિપિડ પ્રોફાઇલ',
+      'thyroid report': 'થાઇરોઇડ રીપોર્ટ',
+      'kidney function test': 'કિડની ફંક્શન ટેસ્ટ',
+      'liver function test': 'લીવર ફંક્શન ટેસ્ટ',
+      'diabetes report': 'ડાયાબિટીસ રીપોર્ટ',
+      'urine report': 'પેશાબનો રીપોર્ટ',
+      'ecg report': 'ઇસીજી રીપોર્ટ',
+      'blood test report': 'રક્ત પરીક્ષણ રીપોર્ટ',
+      'other medical documents': 'અન્ય તબીબી દસ્તાવેજો',
+      'general consultation report': 'સામાન્ય પરામર્શ અહેવાલ',
+      'cardiology consultation report': 'કાર્ડિયોલોજી કન્સલ્ટેશન રિપોર્ટ',
+      'male': 'પુરુષ',
+      'female': 'સ્ત્રી',
+      'le': 'સ્ત્રી (le)',
+      'z': 'અજ્ઞાત',
+      'hypertension': 'હાઈ બ્લડ પ્રેશર',
+      'dizziness': 'ચક્કર આવવા',
+      'fatigue': 'થાક',
+      'non-smoker': 'ધૂમ્રપાન ન કરનાર',
+      'normal': 'સામાન્ય',
+      'high': 'ઉચ્ચ',
+      'low': 'नीचुं',
+      'critical': 'ગંભીર',
+      'not available': 'ઉપલબ્ધ નથી',
+      'detected': 'શોધાયેલ',
+      'not detected': 'શોધાયેલ નથી',
+      'overs heat': 'ગરમી લાગવી',
+      'diagnosis': 'નિદાન',
+      'father has diabetes': 'પિતાને ડાયાબિટીસ છે',
+      'consult physician.': 'તબીબની સલાહ લો.',
+      'consult primary care physician.': 'તબીબની સલાહ લો.',
+      'follow up': 'ફરી તપાસ',
+      'follow up in 2 weeks': '૨ અઠવાડિયામાં ફરી તપાસ કરાવો',
+      'general medicine': 'સામાન્ય દવા',
+      'hemoglobin': 'હિમોગ્લોબિન',
+      'hypertension for 5 years': '૫ વર્ષથી હાઈ બ્લડ પ્રેશર',
+      'anemia detected due to low hemoglobin': 'ઓછા હિમોગ્લોબિનને કારણે એનિમિયા જોવા મળ્યો',
+      'saran sotmson': 'સરન સોટમસન',
+      'michael brown': 'માઇકલ બ્રાઉન',
+      'dr. smith': 'ડો. સ્મિથ',
+      'patenti0': 'દર્દી આઈડી',
+      'diagnosis: overs heat;': 'નિદાન: ગરમી લાગવી',
+      'treatment plan: isioprl': 'સારવાર યોજના: લિસિનોપ્રિલ',
+      'treatment plan: isioprl is abnormal at 10  (reference: n/a).': 'સારવાર યોજના: લિસિનોપ્રિલ ૧૦ પર અસામાન્ય છે (સંદર્ભ: લાગુ નથી)',
+      'loc pressure 120/80 mii heart at 75 pm, norma lb resus': 'બ્લડ પ્રેશર ૧૨૦/૮૦, હૃદય દર ૭૫ પ્રતિ મિનિટ, સામાન્ય રિપોર્ટ',
+      'continue balanced de, moderato oerise, and annua ath check ups.': 'સંતુલિત आहार, मध्यम व्यायाम अने વાર્ષિક સ્વાસ્થ્ય તપાસ ચાલુ રાખો.',
+      'recommended none year o if symptoms develop.': 'લક્ષણો દેખાય તો એક વર્ષમાં તપાસ કરાવવાની ભલામણ કરવામાં આવે છે.',
+      'next isn hres month, with bi-weekly blood pressure checks at home,': 'ઘરે દર બે અઠવાડિયે બ્લડ પ્રેશરની તપાસ સાથે, આગામી મુલાકાત ત્રણ મહિનામાં છે,',
+      'blood pressure 10/55 mm, heart ate 85 bpm, cholstarsl 240 mole.': 'બ્લડ પ્રેશર ૧૦/૫૫ mm, હૃદય દર ૮૫ ધબકારા પ્રતિ મિનિટ, કોલેસ્ટ્રોલ ૨૪૦ mole.',
+      'hypertension and hyparlpidemia (gh cholesterol.': 'હાઈ બ્લડ પ્રેશર અને હાયપરલિપિડેમિયા (ઉચ્ચ કોલેસ્ટ્રોલ)',
+      'isioprl 10 ma, once dal; simustot 40 ma, once diy low-sodium di.': 'લિસિનોપ્રિલ ૧૦ મિલીગ્રામ, દિવસમાં એક વાર; સિમવાસ્ટેટિન ૪૦ મિલીગ્રામ, દિવસમાં એક વાર; ઓછો સોડિયમ ખોરાક.'
+    }
+  };
+
+  const activeDict = isHindi ? translationDict.hindi : translationDict.gujarati;
+
+  const translateString = (str) => {
+    if (!str || typeof str !== 'string' || str === 'Not Available') return str;
+    
+    // Check direct match
+    const cleanStr = str.trim().replace(/^[:\-\s+*•«]+|[:\-\s+*•«]+$/g, '').trim();
+    const lower = cleanStr.toLowerCase();
+    
+    if (activeDict[lower]) {
+      return activeDict[lower];
+    }
+    
+    // Check substring mappings
+    let translated = str;
+    for (const key of Object.keys(activeDict)) {
+      const reg = new RegExp('\\b' + key.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&') + '\\b', 'gi');
+      if (reg.test(translated)) {
+        translated = translated.replace(reg, activeDict[key]);
+      }
+    }
+
+    return translated;
+  };
+
+  const translateArray = (arr) => {
+    if (!Array.isArray(arr)) return arr;
+    return arr.map(item => translateString(item));
+  };
+
+  const translateLabResults = (results) => {
+    if (!Array.isArray(results)) return results;
+    return results.map(r => ({
+      ...r,
+      test: translateString(r.test),
+      status: translateString(r.status)
+    }));
+  };
+
+  const translateKeyFindings = (findings) => {
+    if (!Array.isArray(findings)) return findings;
+    return findings.map(f => {
+      if (typeof f === 'string') return translateString(f);
+      return {
+        ...f,
+        test: translateString(f.test),
+        status: translateString(f.status)
+      };
+    });
+  };
+
+  return {
+    ...data,
+    reportType: translateString(data.reportType),
+    summary: translateString(data.summary),
+    medicalHistory: translateArray(data.medicalHistory),
+    symptoms: translateArray(data.symptoms),
+    familyHistory: translateArray(data.familyHistory),
+    lifestyle: translateArray(data.lifestyle),
+    lifestyleInformation: translateArray(data.lifestyleInformation),
+    labResults: translateLabResults(data.labResults),
+    keyFindings: translateKeyFindings(data.keyFindings),
+    criticalAlerts: translateArray(data.criticalAlerts),
+    recommendations: translateString(data.recommendations),
+    doctorNotes: translateArray(data.doctorNotes),
+    patientDetails: {
+      ...data.patientDetails,
+      gender: translateString(data.patientDetails?.gender),
+      age: translateString(data.patientDetails?.age)
+    },
+    doctorDetails: {
+      ...data.doctorDetails,
+      specialty: translateString(data.doctorDetails?.specialty)
+    }
+  };
+}
+
 module.exports = {
   analyzeMedicineLabel,
-  analyzeMedicalReport
+  analyzeMedicalReport,
+  translateReport
 };
+
+

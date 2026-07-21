@@ -15,6 +15,42 @@ import {
   Loader2
 } from 'lucide-react';
 
+const UI_STRINGS = {
+  English: {
+    fileName: "File Name",
+    executiveSummary: "Executive Summary",
+    keyFindings: "Key Findings",
+    testColumn: "Biomarker",
+    valueColumn: "Value",
+    refRangeColumn: "Reference Range",
+    statusColumn: "Status",
+    clinicalAlerts: "Clinical Alerts",
+    recommendations: "Clinical Recommendations"
+  },
+  Hindi: {
+    fileName: "फ़ाइल का नाम",
+    executiveSummary: "मुख्य सारांश",
+    keyFindings: "प्रमुख निष्कर्ष",
+    testColumn: "बायोमार्कर",
+    valueColumn: "मान",
+    refRangeColumn: "संदर्भ सीमा",
+    statusColumn: "स्थिति",
+    clinicalAlerts: "नैदानिक अलर्ट",
+    recommendations: "नैदानिक सिफारिशें"
+  },
+  Gujarati: {
+    fileName: "ફાઇલનું નામ",
+    executiveSummary: "મુખ્ય સારાંશ",
+    keyFindings: "મુખ્ય તારણો",
+    testColumn: "બાયોમાર્કર",
+    valueColumn: "મૂલ્ય",
+    refRangeColumn: "સંદર્ભ સીમા",
+    statusColumn: "સ્થિતિ",
+    clinicalAlerts: "ક્લિનિકલ ચેતવણીઓ",
+    recommendations: "ક્લિનિકલ ભલામણો"
+  }
+};
+
 const HistoryPage = () => {
   const [activeSubTab, setActiveSubTab] = useState('scans'); // 'scans' or 'reports'
   const [searchQuery, setSearchQuery] = useState('');
@@ -27,6 +63,12 @@ const HistoryPage = () => {
   // Selected item for detail modal
   const [selectedItem, setSelectedItem] = useState(null);
   const [selectedItemType, setSelectedItemType] = useState(null); // 'scan' or 'report'
+
+  // Multi-language support for report detail modal
+  const [modalLanguage, setModalLanguage] = useState('English');
+  const [originalSelectedItem, setOriginalSelectedItem] = useState(null);
+  const [translatedItems, setTranslatedItems] = useState({}); // Cache structure: { [reportId]: { Hindi: reportObj, Gujarati: reportObj } }
+  const [modalLoading, setModalLoading] = useState(false);
 
   const fetchHistory = async () => {
     setLoading(true);
@@ -96,11 +138,56 @@ const HistoryPage = () => {
   const openDetails = (item, type) => {
     setSelectedItem(item);
     setSelectedItemType(type);
+    if (type === 'report') {
+      setOriginalSelectedItem(item);
+      setModalLanguage('English');
+    }
   };
 
   const closeDetails = () => {
     setSelectedItem(null);
     setSelectedItemType(null);
+    setOriginalSelectedItem(null);
+    setModalLanguage('English');
+  };
+
+  const handleModalLanguageChange = async (lang) => {
+    setModalLanguage(lang);
+    if (lang === 'English') {
+      if (originalSelectedItem) {
+        setSelectedItem(originalSelectedItem);
+      }
+      return;
+    }
+
+    const reportId = originalSelectedItem?.id || originalSelectedItem?._id;
+    if (!reportId) return;
+
+    if (translatedItems[reportId]?.[lang]) {
+      setSelectedItem(translatedItems[reportId][lang]);
+      return;
+    }
+
+    setModalLoading(true);
+    try {
+      const res = await api.translateReport(originalSelectedItem, lang);
+      if (res.success) {
+        setSelectedItem(res.data);
+        setTranslatedItems(prev => ({
+          ...prev,
+          [reportId]: {
+            ...(prev[reportId] || {}),
+            [lang]: res.data
+          }
+        }));
+      }
+    } catch (err) {
+      alert(err.message || `Failed to translate report to ${lang}`);
+      setModalLanguage('English');
+      if (originalSelectedItem) setSelectedItem(originalSelectedItem);
+    } finally {
+      setModalLoading(false);
+    }
   };
 
   const formatDate = (dateString) => {
@@ -368,27 +455,56 @@ const HistoryPage = () => {
             </button>
 
             {/* Modal Header */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
-              <div style={{
-                background: selectedItemType === 'scan' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(99, 102, 241, 0.1)',
-                color: selectedItemType === 'scan' ? 'var(--primary)' : 'var(--secondary)',
-                width: '40px',
-                height: '40px',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                {selectedItemType === 'scan' ? <Pill size={22} /> : <FileText size={22} />}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem', flexWrap: 'wrap', gap: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{
+                  background: selectedItemType === 'scan' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(99, 102, 241, 0.1)',
+                  color: selectedItemType === 'scan' ? 'var(--primary)' : 'var(--secondary)',
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  {selectedItemType === 'scan' ? <Pill size={22} /> : <FileText size={22} />}
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: '800' }}>
+                    {selectedItemType === 'scan' ? 'Medicine Scan Details' : 'Lab Document Analysis'}
+                  </h3>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    Scanned on {formatDate(selectedItem.createdAt)}
+                  </span>
+                </div>
               </div>
-              <div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: '800' }}>
-                  {selectedItemType === 'scan' ? 'Medicine Scan Details' : 'Lab Document Analysis'}
-                </h3>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  Scanned on {formatDate(selectedItem.createdAt)}
-                </span>
-              </div>
+
+              {selectedItemType === 'report' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  {modalLoading && <Loader2 size={14} style={{ animation: 'spin 1.5s linear infinite', color: 'var(--secondary)' }} />}
+                  <label htmlFor="modal-language-select" style={{ fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-muted)' }}>Language:</label>
+                  <select
+                    id="modal-language-select"
+                    value={modalLanguage}
+                    disabled={modalLoading}
+                    onChange={(e) => handleModalLanguageChange(e.target.value)}
+                    style={{
+                      background: 'rgba(25, 30, 45, 0.95)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: 'var(--radius-sm)',
+                      padding: '0.25rem 0.5rem',
+                      color: '#ffffff',
+                      fontSize: '0.85rem',
+                      outline: 'none',
+                      cursor: modalLoading ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    <option value="English">English</option>
+                    <option value="Hindi">Hindi (हिंदी)</option>
+                    <option value="Gujarati">Gujarati (ગુજરાતી)</option>
+                  </select>
+                </div>
+              )}
             </div>
 
             {/* Modal Body Contents */}
@@ -434,25 +550,25 @@ const HistoryPage = () => {
                 <>
                   {/* Report Details */}
                   <div style={{ padding: '0.75rem 1rem', background: 'rgba(99, 102, 241, 0.03)', border: '1px solid var(--secondary-glow)', borderRadius: 'var(--radius-sm)' }}>
-                    <h4 style={{ fontSize: '0.8rem', color: 'var(--secondary)', fontWeight: '700', textTransform: 'uppercase' }}>File Name</h4>
+                    <h4 style={{ fontSize: '0.8rem', color: 'var(--secondary)', fontWeight: '700', textTransform: 'uppercase' }}>{UI_STRINGS[modalLanguage].fileName}</h4>
                     <p style={{ fontSize: '1.1rem', fontWeight: '700', color: 'var(--text-main)', marginTop: '0.15rem' }}>{selectedItem.fileName}</p>
                   </div>
 
                   <div>
-                    <h4 style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--secondary)', marginBottom: '0.25rem' }}>Executive Summary</h4>
+                    <h4 style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--secondary)', marginBottom: '0.25rem' }}>{UI_STRINGS[modalLanguage].executiveSummary}</h4>
                     <p style={{ color: 'var(--text-muted)' }}>{selectedItem.summary}</p>
                   </div>
 
                   <div>
-                    <h4 style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--secondary)', marginBottom: '0.5rem' }}>Key Findings</h4>
+                    <h4 style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--secondary)', marginBottom: '0.5rem' }}>{UI_STRINGS[modalLanguage].keyFindings}</h4>
                     <div style={{ overflowX: 'auto' }}>
                       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
                         <thead>
                           <tr style={{ borderBottom: '1px solid var(--border-color)', color: 'var(--text-muted)', textAlign: 'left' }}>
-                            <th style={{ padding: '0.4rem', fontWeight: '600' }}>Biomarker</th>
-                            <th style={{ padding: '0.4rem', fontWeight: '600' }}>Value</th>
-                            <th style={{ padding: '0.4rem', fontWeight: '600' }}>Reference Range</th>
-                            <th style={{ padding: '0.4rem', fontWeight: '600' }}>Status</th>
+                            <th style={{ padding: '0.4rem', fontWeight: '600' }}>{UI_STRINGS[modalLanguage].testColumn}</th>
+                            <th style={{ padding: '0.4rem', fontWeight: '600' }}>{UI_STRINGS[modalLanguage].valueColumn}</th>
+                            <th style={{ padding: '0.4rem', fontWeight: '600' }}>{UI_STRINGS[modalLanguage].refRangeColumn}</th>
+                            <th style={{ padding: '0.4rem', fontWeight: '600' }}>{UI_STRINGS[modalLanguage].statusColumn}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -470,12 +586,12 @@ const HistoryPage = () => {
                   </div>
 
                   <div>
-                    <h4 style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--danger)', marginBottom: '0.5rem' }}>Clinical Alerts</h4>
+                    <h4 style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--danger)', marginBottom: '0.5rem' }}>{UI_STRINGS[modalLanguage].clinicalAlerts}</h4>
                     <HighlightedInsights insights={selectedItem.highlightedInsights} />
                   </div>
 
                   <div>
-                    <h4 style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--primary)', marginBottom: '0.25rem' }}>Clinical Recommendations</h4>
+                    <h4 style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--primary)', marginBottom: '0.25rem' }}>{UI_STRINGS[modalLanguage].recommendations}</h4>
                     <p style={{ color: 'var(--text-muted)' }}>{selectedItem.recommendations}</p>
                   </div>
                 </>
