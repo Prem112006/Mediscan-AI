@@ -1,7 +1,7 @@
 const ReportHistory = require('../models/ReportHistory');
 const { extractTextFromImage } = require('../utils/ocr');
 const { extractTextFromPDF } = require('../utils/pdfExtractor');
-const { analyzeMedicalReport } = require('../utils/llm');
+const { analyzeMedicalReport, translateReport } = require('../utils/llm');
 const path = require('path');
 const fs = require('fs');
 
@@ -103,6 +103,28 @@ const analyzeReportFile = async (req, res) => {
   }
 };
 
-module.exports = {
-  analyzeReportFile
+const translateReportData = async (req, res) => {
+  try {
+    const { reportData, language } = req.body;
+
+    if (!reportData || !language) {
+      return res.status(400).json({ success: false, error: 'Please provide reportData and target language' });
+    }
+
+    const translatedReport = await translateReport(reportData, language);
+
+    res.status(200).json({
+      success: true,
+      data: translatedReport
+    });
+  } catch (error) {
+    console.error('Translation controller error:', error);
+    res.status(500).json({ success: false, error: 'Server error during report translation' });
+  }
 };
+
+module.exports = {
+  analyzeReportFile,
+  translateReportData
+};
+

@@ -99,6 +99,12 @@ export const api = {
     body: formData, // FormData contains 'file' file
   }),
 
+  translateReport: (reportData, language) => request('/report/translate', {
+    method: 'POST',
+    body: JSON.stringify({ reportData, language }),
+  }),
+
+
   // Admin Portal APIs
   getAdminStats: () => request('/admin/stats'),
   getAdminUsers: (search = '') => request(`/admin/users?search=${encodeURIComponent(search)}`),
