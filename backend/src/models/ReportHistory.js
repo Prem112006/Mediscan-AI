@@ -20,6 +20,22 @@ const HighlightedInsightSchema = new mongoose.Schema({
   message: { type: String, required: true }
 }, { _id: false });
 
+const PatientExplanationProblemSchema = new mongoose.Schema({
+  problem: { type: String, default: '' },
+  description: { type: String, default: '' }
+}, { _id: false });
+
+const PatientExplanationSchema = new mongoose.Schema({
+  overallStatus: { type: String, default: '' },
+  problemsFound: [PatientExplanationProblemSchema],
+  recommendedTreatment: [String],
+  homeCareAdvice: [String],
+  summary: {
+    mainProblems: [String],
+    goodNews: [String]
+  }
+}, { _id: false });
+
 const ReportHistorySchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -98,6 +114,9 @@ const ReportHistorySchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  patientExplanation: {
+    type: PatientExplanationSchema
+  },
   reportConfidence: {
     type: Number,
     default: 95,
@@ -117,6 +136,9 @@ const ReportHistorySchema = new mongoose.Schema({
   warnings: {
     type: String,
     default: '',
+  },
+  cardAnalysis: {
+    type: mongoose.Schema.Types.Mixed
   }
 }, {
   timestamps: true
