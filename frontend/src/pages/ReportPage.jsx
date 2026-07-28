@@ -42,7 +42,13 @@ const UI_STRINGS = {
     doctorNotes: "Doctor Notes & Clinical Remarks",
     criticalAlerts: "Critical Alerts",
     noAlerts: "No critical alerts detected.",
-    recommendations: "Clinical Recommendations"
+    recommendations: "Clinical Recommendations",
+    patientFriendlyBreakdown: "Simple Patient-Friendly Breakdown",
+    overallDentalHealth: "Overall Health Status",
+    problemsFoundHeader: "Problems Found & What They Mean",
+    recommendedTreatmentHeader: "Recommended Treatment",
+    homeCareAdviceHeader: "Home Care & Lifestyle Advice",
+    summaryHeader: "Quick Summary"
   },
   Hindi: {
     detectedReportType: "पहचाना गया रिपोर्ट प्रकार",
@@ -71,7 +77,13 @@ const UI_STRINGS = {
     doctorNotes: "डॉक्टर के नोट्स और नैदानिक टिप्पणियां",
     criticalAlerts: "महत्वपूर्ण अलर्ट",
     noAlerts: "कोई महत्वपूर्ण अलर्ट नहीं पाया गया।",
-    recommendations: "नैदानिक सिफारिशें"
+    recommendations: "नैदानिक सिफारिशें",
+    patientFriendlyBreakdown: "सरल मरीज-अनुकूल स्पष्टीकरण",
+    overallDentalHealth: "समग्र स्वास्थ्य स्थिति",
+    problemsFoundHeader: "समस्याएं और उनका अर्थ",
+    recommendedTreatmentHeader: "अनुशंसित उपचार",
+    homeCareAdviceHeader: "घरेलू देखभाल और जीवनशैली सलाह",
+    summaryHeader: "त्वरित सारांश"
   },
   Gujarati: {
     detectedReportType: "ઓળખાયેલ રિપોર્ટ પ્રકાર",
@@ -100,7 +112,13 @@ const UI_STRINGS = {
     doctorNotes: "તબીબની નોંધ અને ક્લિનિકલ ટિપ્પણીઓ",
     criticalAlerts: "મહત્વપૂર્ણ ચેતવણીઓ",
     noAlerts: "કોઈ મહત્વપૂર્ણ ચેતવણીઓ મળી નથી.",
-    recommendations: "ક્લિનિકલ ભલામણો"
+    recommendations: "ક્લિનિકલ ભલામણો",
+    patientFriendlyBreakdown: "સરળ દર્દી-અનુકૂળ સમજૂતી",
+    overallDentalHealth: "સમગ્ર આરોગ્ય સ્થિતિ",
+    problemsFoundHeader: "સમસ્યાઓ અને તેનો અર્થ",
+    recommendedTreatmentHeader: "ભલામણ કરેલ સારવાર",
+    homeCareAdviceHeader: "ઘરેલું સંભાળ અને જીવનશૈલી સલાહ",
+    summaryHeader: "ઝડપી સારાંશ"
   }
 };
 
@@ -120,6 +138,15 @@ const ReportPage = () => {
 
   // Active view tab: 'summary', 'findings', 'insights'
   const [activeTab, setActiveTab] = useState('summary');
+  
+  // Expanded tests map state
+  const [expandedTests, setExpandedTests] = useState({});
+  const toggleTestExpand = (idx) => {
+    setExpandedTests(prev => ({
+      ...prev,
+      [idx]: !prev[idx]
+    }));
+  };
 
   const fileInputRef = useRef(null);
 
@@ -548,6 +575,367 @@ const ReportPage = () => {
                 )
               );
 
+              if (result.cardAnalysis) {
+                const card = result.cardAnalysis;
+                
+                const getScoreColor = (score) => {
+                  if (score >= 90) return '#10b981'; // Green
+                  if (score >= 75) return '#6366f1'; // Indigo/Blue
+                  if (score >= 60) return '#f59e0b'; // Amber/Yellow
+                  if (score >= 45) return '#f97316'; // Orange
+                  return '#ef4444'; // Red
+                };
+
+                const getRiskBadgeStyles = (risk) => {
+                  const r = (risk || '').toLowerCase();
+                  if (r.includes('low')) return { bg: 'rgba(16, 185, 129, 0.1)', text: '#10b981', border: 'rgba(16, 185, 129, 0.2)' };
+                  if (r.includes('medium')) return { bg: 'rgba(245, 158, 11, 0.1)', text: '#f59e0b', border: 'rgba(245, 158, 11, 0.2)' };
+                  if (r.includes('high')) return { bg: 'rgba(249, 115, 22, 0.1)', text: '#f97316', border: 'rgba(249, 115, 22, 0.2)' };
+                  return { bg: 'rgba(239, 68, 68, 0.1)', text: '#ef4444', border: 'rgba(239, 68, 68, 0.2)' };
+                };
+
+                const getStatusBadgeStyles = (status) => {
+                  const s = (status || '').toLowerCase();
+                  if (s.includes('normal')) return { bg: 'rgba(16, 185, 129, 0.1)', text: '#10b981' };
+                  if (s.includes('low') || s.includes('high')) return { bg: 'rgba(245, 158, 11, 0.1)', text: '#f59e0b' };
+                  return { bg: 'rgba(239, 68, 68, 0.1)', text: '#ef4444' };
+                };
+
+                const scoreColor = getScoreColor(card.overall_summary.health_score);
+                const riskStyles = getRiskBadgeStyles(card.overall_summary.overall_risk);
+
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', flex: 1 }} className="fade-in">
+                    
+                    {/* Header Banner */}
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '1rem',
+                      background: 'var(--bg-card)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: 'var(--radius-sm)',
+                    }}>
+                      <div>
+                        <span style={{ fontSize: '0.75rem', textTransform: 'uppercase', opacity: 0.8, fontWeight: '700', color: 'var(--text-muted)' }}>
+                          Document Type
+                        </span>
+                        <h3 style={{ fontSize: '1.2rem', fontWeight: '800', color: 'var(--text-main)', margin: 0 }}>
+                          {card.report_information.report_type}
+                        </h3>
+                      </div>
+                      <div style={{ fontSize: '0.75rem', background: 'rgba(255,255,255,0.04)', padding: '0.35rem 0.75rem', borderRadius: '4px', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
+                        ID: {card.report_information.reference_number || 'N/A'}
+                      </div>
+                    </div>
+
+                    {/* Patient & Summary Row */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
+                      
+                      {/* Health Score Circular Gauge */}
+                      <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', position: 'relative' }}>
+                        <h4 style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '1rem', fontWeight: '700', width: '100%' }}>
+                          Health Score
+                        </h4>
+                        
+                        <div style={{
+                          position: 'relative',
+                          width: '130px',
+                          height: '130px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          borderRadius: '50%',
+                          background: 'rgba(255, 255, 255, 0.01)',
+                          border: `8px solid var(--border-color)`,
+                          borderTopColor: scoreColor,
+                          boxShadow: `0 0 20px rgba(255,255,255,0.02)`
+                        }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                            <span style={{ fontSize: '2.25rem', fontWeight: '800', color: scoreColor }}>{card.overall_summary.health_score}</span>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '-0.25rem' }}>/ 100</span>
+                          </div>
+                        </div>
+
+                        <div style={{ marginTop: '1.25rem', fontWeight: '800', fontSize: '1.15rem', color: scoreColor }}>
+                          {card.overall_summary.health_status}
+                        </div>
+
+                        <div style={{
+                          marginTop: '0.5rem',
+                          background: riskStyles.bg,
+                          color: riskStyles.text,
+                          border: `1px solid ${riskStyles.border}`,
+                          padding: '0.25rem 0.75rem',
+                          borderRadius: '50px',
+                          fontSize: '0.75rem',
+                          fontWeight: '700'
+                        }}>
+                          Risk Level: {card.overall_summary.overall_risk}
+                        </div>
+                      </div>
+
+                      {/* Patient & Report Metadata Details */}
+                      <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                        <h4 style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '1rem', fontWeight: '700' }}>
+                          Patient Details
+                        </h4>
+                        
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.9rem', flex: 1 }}>
+                          <div><strong style={{ color: 'var(--text-muted)' }}>Name:</strong> <span style={{ color: 'var(--text-main)', fontWeight: '600' }}>{card.patient_information.patient_name}</span></div>
+                          <div><strong style={{ color: 'var(--text-muted)' }}>Age / Gender:</strong> <span style={{ color: 'var(--text-main)', fontWeight: '600' }}>{card.patient_information.age} / {card.patient_information.gender}</span></div>
+                          <div><strong style={{ color: 'var(--text-muted)' }}>Patient ID:</strong> <span style={{ color: 'var(--text-main)', fontWeight: '600' }}>{card.patient_information.patient_id}</span></div>
+                          <div><strong style={{ color: 'var(--text-muted)' }}>Physician:</strong> <span style={{ color: 'var(--text-main)', fontWeight: '600' }}>{card.report_information.doctor_name}</span></div>
+                          <div><strong style={{ color: 'var(--text-muted)' }}>Facility:</strong> <span style={{ color: 'var(--text-main)', fontWeight: '600' }}>{card.report_information.hospital_name !== 'Not Available' ? card.report_information.hospital_name : (card.report_information.laboratory_name !== 'Not Available' ? card.report_information.laboratory_name : 'Diagnostic Laboratory')}</span></div>
+                          <div><strong style={{ color: 'var(--text-muted)' }}>Date:</strong> <span style={{ color: 'var(--text-main)', fontWeight: '600' }}>{card.report_information.report_date !== 'Not Available' ? card.report_information.report_date : (card.report_information.collection_date !== 'Not Available' ? card.report_information.collection_date : 'N/A')}</span></div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Overall Summary Text */}
+                    <div className="glass-panel" style={{ padding: '1.25rem' }}>
+                      <h4 style={{ fontSize: '0.85rem', color: 'var(--secondary)', textTransform: 'uppercase', marginBottom: '0.5rem', fontWeight: '700' }}>
+                        Executive Summary
+                      </h4>
+                      <p style={{ color: 'var(--text-main)', fontSize: '0.9rem', lineHeight: '1.55', margin: 0 }}>
+                        {card.overall_summary.summary}
+                      </p>
+                    </div>
+
+                    {/* Critical Alerts Banner (If present) */}
+                    {card.critical_alerts && card.critical_alerts.length > 0 && !card.critical_alerts[0].toLowerCase().includes('no immediate') && !card.critical_alerts[0].toLowerCase().includes('no critical') && (
+                      <div style={{
+                        padding: '1.25rem',
+                        background: 'rgba(239, 68, 68, 0.08)',
+                        border: '1px solid rgba(239, 68, 68, 0.25)',
+                        borderRadius: 'var(--radius-sm)',
+                        color: '#f87171'
+                      }}>
+                        <h4 style={{ fontSize: '0.95rem', fontWeight: '700', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#ef4444' }}>
+                          <ShieldAlert size={18} /> CRITICAL ALERTS DETECTED
+                        </h4>
+                        <ul style={{ paddingLeft: '1.2rem', fontSize: '0.85rem', display: 'flex', flexDirection: 'column', gap: '0.35rem', margin: 0 }}>
+                          {card.critical_alerts.map((alert, idx) => (
+                            <li key={idx} style={{ fontWeight: '600' }}>{alert}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Test Breakdown Grid of Cards */}
+                    <div>
+                      <h3 style={{ fontSize: '1.25rem', fontWeight: '800', marginBottom: '1rem', color: 'var(--text-main)' }}>
+                        Test Details & Explanations
+                      </h3>
+                      
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        {card.tests.map((test, index) => {
+                          const isExpanded = !!expandedTests[index];
+                          const tStatus = getStatusBadgeStyles(test.status);
+                          
+                          return (
+                            <div key={index} className="glass-panel" style={{
+                              padding: '1.25rem',
+                              borderLeft: `4px solid ${tStatus.text}`,
+                              transition: 'all 0.3s ease'
+                            }}>
+                              {/* Header Row */}
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                                  <h4 style={{ fontSize: '1.05rem', fontWeight: '700', color: 'var(--text-main)' }}>{test.test_name}</h4>
+                                  <span style={{
+                                    background: tStatus.bg,
+                                    color: tStatus.text,
+                                    padding: '0.15rem 0.5rem',
+                                    borderRadius: '4px',
+                                    fontSize: '0.7rem',
+                                    fontWeight: '700',
+                                    textTransform: 'uppercase'
+                                  }}>{test.status}</span>
+                                  {test.severity && test.severity !== 'Not Available' && (
+                                    <span style={{
+                                      background: 'rgba(255,255,255,0.04)',
+                                      border: '1px solid var(--border-color)',
+                                      color: 'var(--text-muted)',
+                                      padding: '0.15rem 0.5rem',
+                                      borderRadius: '4px',
+                                      fontSize: '0.7rem',
+                                      fontWeight: '600'
+                                    }}>{test.severity} Severity</span>
+                                  )}
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', fontSize: '0.9rem' }}>
+                                  <div>
+                                    <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Value:</span>{' '}
+                                    <strong style={{ color: 'var(--text-main)', fontSize: '1rem' }}>{test.value} {test.unit}</strong>
+                                  </div>
+                                  <div>
+                                    <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Ref Range:</span>{' '}
+                                    <span style={{ color: 'var(--text-muted)' }}>{test.reference_range}</span>
+                                  </div>
+                                  <button onClick={() => toggleTestExpand(index)} className="btn btn-secondary" style={{ padding: '0.3rem 0.75rem', fontSize: '0.75rem' }}>
+                                    {isExpanded ? 'Hide Details' : 'Show Card Details'}
+                                  </button>
+                                </div>
+                              </div>
+
+                              {/* Expanded Panel Details */}
+                              {isExpanded && (
+                                <div className="fade-in" style={{
+                                  marginTop: '1.25rem',
+                                  paddingTop: '1.25rem',
+                                  borderTop: '1px solid var(--border-color)',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: '1rem',
+                                  fontSize: '0.85rem'
+                                }}>
+                                  
+                                  {/* Explanation */}
+                                  <div>
+                                    <h5 style={{ fontWeight: '700', color: 'var(--primary)', marginBottom: '0.35rem' }}>Simple Explanation</h5>
+                                    <p style={{ color: 'var(--text-muted)', lineHeight: '1.45', margin: 0 }}>{test.simple_explanation}</p>
+                                  </div>
+
+                                  {/* Causes & Symptoms Grid */}
+                                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+                                    {test.possible_causes && test.possible_causes.length > 0 && (
+                                      <div>
+                                        <h5 style={{ fontWeight: '700', color: 'var(--text-main)', marginBottom: '0.35rem' }}>Possible Causes</h5>
+                                        <ul style={{ paddingLeft: '1.1rem', margin: 0, color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                                          {test.possible_causes.map((c, i) => <li key={i}>{c}</li>)}
+                                        </ul>
+                                      </div>
+                                    )}
+                                    {test.common_symptoms && test.common_symptoms.length > 0 && (
+                                      <div>
+                                        <h5 style={{ fontWeight: '700', color: 'var(--text-main)', marginBottom: '0.35rem' }}>Common Symptoms</h5>
+                                        <ul style={{ paddingLeft: '1.1rem', margin: 0, color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                                          {test.common_symptoms.map((s, i) => <li key={i}>{s}</li>)}
+                                        </ul>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* Food & Lifestyle Grid */}
+                                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+                                    {test.recommended_foods && test.recommended_foods.length > 0 && (
+                                      <div>
+                                        <h5 style={{ fontWeight: '700', color: '#10b981', marginBottom: '0.35rem' }}>Food Recommendations</h5>
+                                        <ul style={{ paddingLeft: '1.1rem', margin: 0, color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                                          {test.recommended_foods.map((f, i) => <li key={i}>{f}</li>)}
+                                        </ul>
+                                      </div>
+                                    )}
+                                    {test.lifestyle_changes && test.lifestyle_changes.length > 0 && (
+                                      <div>
+                                        <h5 style={{ fontWeight: '700', color: 'var(--secondary)', marginBottom: '0.35rem' }}>Lifestyle Changes</h5>
+                                        <ul style={{ paddingLeft: '1.1rem', margin: 0, color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                                          {test.lifestyle_changes.map((l, i) => <li key={i}>{l}</li>)}
+                                        </ul>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* Treatments, Recovery & Doctor Cautions */}
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', background: 'rgba(255,255,255,0.01)', padding: '0.75rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.02)' }}>
+                                    {test.common_treatments && (
+                                      <div><strong style={{ color: 'var(--text-main)' }}>Common Treatments Considered:</strong> <span style={{ color: 'var(--text-muted)' }}>{test.common_treatments}</span></div>
+                                    )}
+                                    {test.recovery_time && (
+                                      <div><strong style={{ color: 'var(--text-main)' }}>Estimated Recovery Time:</strong> <span style={{
+                                        background: 'rgba(99,102,241,0.08)',
+                                        color: 'var(--secondary)',
+                                        padding: '0.1rem 0.35rem',
+                                        borderRadius: '3px',
+                                        fontSize: '0.75rem',
+                                        fontWeight: '600'
+                                      }}>{test.recovery_time}</span></div>
+                                    )}
+                                    {test.when_to_see_doctor && (
+                                      <div><strong style={{ color: '#f87171' }}>When to seek immediate attention:</strong> <span style={{ color: 'var(--text-muted)' }}>{test.when_to_see_doctor}</span></div>
+                                    )}
+                                  </div>
+
+                                </div>
+                              )}
+
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Normal vs Abnormal Aggregations Grid */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
+                      
+                      {/* Positive normal findings */}
+                      <div className="glass-panel" style={{ padding: '1.25rem', borderColor: 'rgba(16, 185, 129, 0.15)' }}>
+                        <h4 style={{ fontSize: '0.9rem', color: '#10b981', fontWeight: '700', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          ✨ Good News / Positive Findings
+                        </h4>
+                        {card.positive_findings && card.positive_findings.length > 0 ? (
+                          <ul style={{ paddingLeft: '1.2rem', fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', flexDirection: 'column', gap: '0.35rem', margin: 0 }}>
+                            {card.positive_findings.map((item, idx) => (
+                              <li key={idx}>{item}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p style={{ color: 'var(--text-dark)', fontSize: '0.85rem', margin: 0, fontStyle: 'italic' }}>No positive baseline metrics highlighted.</p>
+                        )}
+                      </div>
+
+                      {/* Abnormal findings list */}
+                      <div className="glass-panel" style={{ padding: '1.25rem', borderColor: 'rgba(239, 68, 68, 0.15)' }}>
+                        <h4 style={{ fontSize: '0.9rem', color: 'var(--danger)', fontWeight: '700', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                          ⚠️ Concerns / Abnormal Findings
+                        </h4>
+                        {card.abnormal_findings && card.abnormal_findings.length > 0 ? (
+                          <ul style={{ paddingLeft: '1.2rem', fontSize: '0.85rem', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', gap: '0.35rem', margin: 0 }}>
+                            {card.abnormal_findings.map((item, idx) => (
+                              <li key={idx} style={{ fontWeight: '500' }}>{item}</li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p style={{ color: '#10b981', fontSize: '0.85rem', margin: 0, fontStyle: 'italic', fontWeight: '600' }}>All parameters are within standard baseline ranges.</p>
+                        )}
+                      </div>
+
+                    </div>
+
+                    {/* Questions to Ask Doctor */}
+                    {card.questions_for_doctor && card.questions_for_doctor.length > 0 && (
+                      <div className="glass-panel" style={{ padding: '1.25rem' }}>
+                        <h4 style={{ fontSize: '0.9rem', color: 'var(--primary)', fontWeight: '700', marginBottom: '0.75rem' }}>
+                          ❓ Helpful Questions to Ask Your Doctor
+                        </h4>
+                        <ol style={{ paddingLeft: '1.2rem', fontSize: '0.85rem', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', gap: '0.5rem', margin: 0 }}>
+                          {card.questions_for_doctor.map((q, idx) => (
+                            <li key={idx} style={{ fontWeight: '500', lineHeight: '1.4' }}>{q}</li>
+                          ))}
+                        </ol>
+                      </div>
+                    )}
+
+                    {/* Disclaimer */}
+                    <div style={{
+                      padding: '1rem',
+                      background: 'rgba(255,255,255,0.01)',
+                      border: '1px solid var(--border-color)',
+                      borderRadius: 'var(--radius-sm)',
+                      fontSize: '0.75rem',
+                      color: 'var(--text-dark)',
+                      lineHeight: '1.45',
+                      textAlign: 'center'
+                    }}>
+                      {card.disclaimer}
+                    </div>
+
+                  </div>
+                );
+              }
+
               return (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', flex: 1 }} className="fade-in">
                   {/* Report Type Header */}
@@ -627,6 +1015,114 @@ const ReportPage = () => {
                       fontWeight: '600'
                     }}>
                       ⚠️ Some portions of the uploaded report could not be extracted accurately.
+                    </div>
+                  )}
+
+                  {/* Patient Friendly Breakdown Card */}
+                  {result.patientExplanation && (
+                    <div className="glass-panel" style={{ 
+                      padding: '1.5rem', 
+                      background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(168, 85, 247, 0.05) 100%)', 
+                      borderColor: 'rgba(99, 102, 241, 0.25)',
+                      boxShadow: '0 8px 32px rgba(99, 102, 241, 0.05)'
+                    }}>
+                      <h3 style={{ fontSize: '1.25rem', fontWeight: '800', color: 'var(--secondary)', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span>🩺</span> {UI_STRINGS[selectedLanguage].patientFriendlyBreakdown}
+                      </h3>
+
+                      {/* 1. Overall Health Status */}
+                      {result.patientExplanation.overallStatus && (
+                        <div style={{ marginBottom: '1.5rem' }}>
+                          <h4 style={{ fontSize: '0.95rem', color: 'var(--text-main)', fontWeight: '700', marginBottom: '0.5rem' }}>
+                            📢 {UI_STRINGS[selectedLanguage].overallDentalHealth}
+                          </h4>
+                          <p style={{ color: 'var(--text-main)', fontSize: '0.9rem', lineHeight: '1.55' }}>
+                            {result.patientExplanation.overallStatus}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* 2. Problems Found */}
+                      {result.patientExplanation.problemsFound && result.patientExplanation.problemsFound.length > 0 && (
+                        <div style={{ marginBottom: '1.5rem' }}>
+                          <h4 style={{ fontSize: '0.95rem', color: 'var(--text-main)', fontWeight: '700', marginBottom: '0.75rem' }}>
+                            🔍 {UI_STRINGS[selectedLanguage].problemsFoundHeader}
+                          </h4>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                            {result.patientExplanation.problemsFound.map((item, idx) => (
+                              <div key={idx} style={{ 
+                                background: 'rgba(255, 255, 255, 0.015)', 
+                                padding: '0.85rem', 
+                                borderRadius: 'var(--radius-sm)',
+                                borderLeft: '3px solid var(--secondary)',
+                                borderTop: '1px solid rgba(255, 255, 255, 0.02)',
+                                borderRight: '1px solid rgba(255, 255, 255, 0.02)',
+                                borderBottom: '1px solid rgba(255, 255, 255, 0.02)'
+                              }}>
+                                <div style={{ fontWeight: '700', fontSize: '0.9rem', color: 'var(--text-main)', marginBottom: '0.25rem' }}>
+                                  🔹 {item.problem}
+                                </div>
+                                <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: '1.45' }}>
+                                  {item.description}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 3. Recommended Treatment */}
+                      {result.patientExplanation.recommendedTreatment && result.patientExplanation.recommendedTreatment.length > 0 && (
+                        <div style={{ marginBottom: '1.5rem' }}>
+                          <h4 style={{ fontSize: '0.95rem', color: 'var(--text-main)', fontWeight: '700', marginBottom: '0.5rem' }}>
+                            🛠️ {UI_STRINGS[selectedLanguage].recommendedTreatmentHeader}
+                          </h4>
+                          <ul style={{ paddingLeft: '1.25rem', fontSize: '0.9rem', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                            {result.patientExplanation.recommendedTreatment.map((item, idx) => <li key={idx}>{item}</li>)}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* 4. Home Care Advice */}
+                      {result.patientExplanation.homeCareAdvice && result.patientExplanation.homeCareAdvice.length > 0 && (
+                        <div style={{ marginBottom: '1.5rem' }}>
+                          <h4 style={{ fontSize: '0.95rem', color: 'var(--text-main)', fontWeight: '700', marginBottom: '0.5rem' }}>
+                            🏠 {UI_STRINGS[selectedLanguage].homeCareAdviceHeader}
+                          </h4>
+                          <ul style={{ paddingLeft: '1.25rem', fontSize: '0.9rem', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                            {result.patientExplanation.homeCareAdvice.map((item, idx) => <li key={idx}>{item}</li>)}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* 5. Summary (Main Problems & Good News) */}
+                      {result.patientExplanation.summary && (
+                        <div style={{ 
+                          background: 'rgba(255, 255, 255, 0.01)', 
+                          border: '1px solid var(--border-color)', 
+                          borderRadius: 'var(--radius-sm)', 
+                          padding: '1.25rem',
+                          marginTop: '1.5rem'
+                        }}>
+                          <h4 style={{ fontSize: '0.95rem', color: 'var(--text-main)', fontWeight: '700', marginBottom: '0.75rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+                            📝 {UI_STRINGS[selectedLanguage].summaryHeader}
+                          </h4>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem' }}>
+                            <div>
+                              <h5 style={{ fontWeight: '700', color: 'var(--danger)', fontSize: '0.85rem', marginBottom: '0.35rem' }}>⚠️ Main Problems</h5>
+                              <ul style={{ paddingLeft: '1.25rem', fontSize: '0.85rem', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                {result.patientExplanation.summary.mainProblems?.map((item, idx) => <li key={idx}>{item}</li>) || <li>None</li>}
+                              </ul>
+                            </div>
+                            <div>
+                              <h5 style={{ fontWeight: '700', color: '#10b981', fontSize: '0.85rem', marginBottom: '0.35rem' }}>✨ Good News</h5>
+                              <ul style={{ paddingLeft: '1.25rem', fontSize: '0.85rem', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                {result.patientExplanation.summary.goodNews?.map((item, idx) => <li key={idx}>{item}</li>) || <li>None</li>}
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
 

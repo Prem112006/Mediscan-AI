@@ -70,6 +70,15 @@ const HistoryPage = () => {
   const [translatedItems, setTranslatedItems] = useState({}); // Cache structure: { [reportId]: { Hindi: reportObj, Gujarati: reportObj } }
   const [modalLoading, setModalLoading] = useState(false);
 
+  // State for expanded tests in the report modal
+  const [expandedTests, setExpandedTests] = useState({});
+  const toggleTestExpand = (idx) => {
+    setExpandedTests(prev => ({
+      ...prev,
+      [idx]: !prev[idx]
+    }));
+  };
+
   const fetchHistory = async () => {
     setLoading(true);
     try {
@@ -138,6 +147,7 @@ const HistoryPage = () => {
   const openDetails = (item, type) => {
     setSelectedItem(item);
     setSelectedItemType(type);
+    setExpandedTests({});
     if (type === 'report') {
       setOriginalSelectedItem(item);
       setModalLanguage('English');
@@ -149,6 +159,7 @@ const HistoryPage = () => {
     setSelectedItemType(null);
     setOriginalSelectedItem(null);
     setModalLanguage('English');
+    setExpandedTests({});
   };
 
   const handleModalLanguageChange = async (lang) => {
@@ -418,29 +429,38 @@ const HistoryPage = () => {
 
       {/* DETAIL MODAL PANEL */}
       {selectedItem && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(11, 15, 25, 0.85)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 999,
-          padding: '2rem 1.5rem',
-          backdropFilter: 'blur(8px)'
-        }}>
-          <div className="glass-panel fade-in" style={{
-            maxWidth: '700px',
-            width: '100%',
-            maxHeight: '90vh',
-            overflowY: 'auto',
-            background: '#161c2d',
-            padding: '2rem',
-            position: 'relative'
-          }}>
+        <div 
+          onClick={closeDetails}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(11, 15, 25, 0.85)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 999,
+            padding: '2rem 1.5rem',
+            backdropFilter: 'blur(8px)',
+            cursor: 'pointer'
+          }}
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            className="glass-panel fade-in" 
+            style={{
+              maxWidth: '700px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              background: '#161c2d',
+              padding: '2rem',
+              position: 'relative',
+              cursor: 'default'
+            }}
+          >
             {/* Close Button */}
             <button onClick={closeDetails} style={{
               position: 'absolute',
@@ -546,7 +566,225 @@ const HistoryPage = () => {
                     </div>
                   </div>
                 </>
-              ) : (
+              ) : selectedItem.cardAnalysis ? (() => {
+                const card = selectedItem.cardAnalysis;
+                
+                const getScoreColor = (score) => {
+                  if (score >= 90) return '#10b981'; // Green
+                  if (score >= 75) return '#6366f1'; // Indigo/Blue
+                  if (score >= 60) return '#f59e0b'; // Amber/Yellow
+                  if (score >= 45) return '#f97316'; // Orange
+                  return '#ef4444'; // Red
+                };
+
+                const getRiskBadgeStyles = (risk) => {
+                  const r = (risk || '').toLowerCase();
+                  if (r.includes('low')) return { bg: 'rgba(16, 185, 129, 0.1)', text: '#10b981', border: 'rgba(16, 185, 129, 0.2)' };
+                  if (r.includes('medium')) return { bg: 'rgba(245, 158, 11, 0.1)', text: '#f59e0b', border: 'rgba(245, 158, 11, 0.2)' };
+                  if (r.includes('high')) return { bg: 'rgba(249, 115, 22, 0.1)', text: '#f97316', border: 'rgba(249, 115, 22, 0.2)' };
+                  return { bg: 'rgba(239, 68, 68, 0.1)', text: '#ef4444', border: 'rgba(239, 68, 68, 0.2)' };
+                };
+
+                const getStatusBadgeStyles = (status) => {
+                  const s = (status || '').toLowerCase();
+                  if (s.includes('normal')) return { bg: 'rgba(16, 185, 129, 0.1)', text: '#10b981' };
+                  if (s.includes('low') || s.includes('high')) return { bg: 'rgba(245, 158, 11, 0.1)', text: '#f59e0b' };
+                  return { bg: 'rgba(239, 68, 68, 0.1)', text: '#ef4444' };
+                };
+
+                const scoreColor = getScoreColor(card.overall_summary.health_score);
+                const riskStyles = getRiskBadgeStyles(card.overall_summary.overall_risk);
+
+                return (
+                  <>
+                    {/* Header Info */}
+                    <div style={{ padding: '0.75rem 1rem', background: 'rgba(99, 102, 241, 0.03)', border: '1px solid var(--secondary-glow)', borderRadius: 'var(--radius-sm)' }}>
+                      <h4 style={{ fontSize: '0.8rem', color: 'var(--secondary)', fontWeight: '700', textTransform: 'uppercase' }}>Report Type / File</h4>
+                      <p style={{ fontSize: '1.1rem', fontWeight: '700', color: 'var(--text-main)', marginTop: '0.15rem' }}>{card.report_information.report_type}</p>
+                      <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>File Name: {selectedItem.fileName}</p>
+                    </div>
+
+                    {/* Patient & Score Row */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+                      <div className="glass-panel" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
+                        <h4 style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '0.5rem', fontWeight: '700' }}>Health Score</h4>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.2rem' }}>
+                          <span style={{ fontSize: '2rem', fontWeight: '800', color: scoreColor }}>{card.overall_summary.health_score}</span>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>/100</span>
+                        </div>
+                        <div style={{ fontWeight: '700', color: scoreColor, marginTop: '0.25rem' }}>{card.overall_summary.health_status}</div>
+                        <div style={{ marginTop: '0.35rem', background: riskStyles.bg, color: riskStyles.text, border: `1px solid ${riskStyles.border}`, padding: '0.15rem 0.5rem', borderRadius: '50px', fontSize: '0.7rem', fontWeight: '700' }}>
+                          Risk: {card.overall_summary.overall_risk}
+                        </div>
+                      </div>
+
+                      <div className="glass-panel" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '0.35rem', fontSize: '0.85rem' }}>
+                        <div><strong>Patient:</strong> {card.patient_information.patient_name}</div>
+                        <div><strong>Age / Gender:</strong> {card.patient_information.age} / {card.patient_information.gender}</div>
+                        <div><strong>Patient ID:</strong> {card.patient_information.patient_id}</div>
+                        <div><strong>Doctor Name:</strong> {card.report_information.doctor_name}</div>
+                      </div>
+                    </div>
+
+                    {/* Summary */}
+                    <div>
+                      <h4 style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--secondary)', marginBottom: '0.25rem' }}>Executive Summary</h4>
+                      <p style={{ color: 'var(--text-muted)' }}>{card.overall_summary.summary}</p>
+                    </div>
+
+                    {/* Critical Alerts Banner (If present) */}
+                    {card.critical_alerts && card.critical_alerts.length > 0 && !card.critical_alerts[0].toLowerCase().includes('no immediate') && !card.critical_alerts[0].toLowerCase().includes('no critical') && (
+                      <div style={{
+                        padding: '1rem',
+                        background: 'rgba(239, 68, 68, 0.08)',
+                        border: '1px solid rgba(239, 68, 68, 0.25)',
+                        borderRadius: 'var(--radius-sm)',
+                        color: '#f87171'
+                      }}>
+                        <h4 style={{ fontSize: '0.9rem', fontWeight: '700', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.25rem', color: '#ef4444' }}>
+                          ⚠️ CRITICAL ALERTS DETECTED
+                        </h4>
+                        <ul style={{ paddingLeft: '1.2rem', fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '0.25rem', margin: 0 }}>
+                          {card.critical_alerts.map((alert, idx) => (
+                            <li key={idx} style={{ fontWeight: '600' }}>{alert}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Test Breakdown Grid of Cards */}
+                    <div>
+                      <h4 style={{ fontSize: '0.95rem', fontWeight: '700', color: 'var(--text-main)', marginBottom: '0.5rem' }}>Test Results</h4>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        {card.tests.map((test, index) => {
+                          const isExpanded = !!expandedTests[index];
+                          const tStatus = getStatusBadgeStyles(test.status);
+                          
+                          return (
+                            <div key={index} className="glass-panel" style={{
+                              padding: '1rem',
+                              borderLeft: `4px solid ${tStatus.text}`,
+                              transition: 'all 0.3s ease'
+                            }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                  <span style={{ fontWeight: '700', color: 'var(--text-main)' }}>{test.test_name}</span>
+                                  <span style={{
+                                    background: tStatus.bg,
+                                    color: tStatus.text,
+                                    padding: '0.1rem 0.35rem',
+                                    borderRadius: '3px',
+                                    fontSize: '0.65rem',
+                                    fontWeight: '700',
+                                    textTransform: 'uppercase'
+                                  }}>{test.status}</span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.85rem' }}>
+                                  <div><strong>{test.value} {test.unit}</strong></div>
+                                  <div style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>Range: {test.reference_range}</div>
+                                  <button onClick={() => toggleTestExpand(index)} className="btn btn-secondary" style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}>
+                                    {isExpanded ? 'Hide' : 'Details'}
+                                  </button>
+                                </div>
+                              </div>
+
+                              {isExpanded && (
+                                <div className="fade-in" style={{
+                                  marginTop: '0.75rem',
+                                  paddingTop: '0.75rem',
+                                  borderTop: '1px solid var(--border-color)',
+                                  display: 'flex',
+                                  flexDirection: 'column',
+                                  gap: '0.75rem',
+                                  fontSize: '0.8rem'
+                                }}>
+                                  <div>
+                                    <h6 style={{ fontWeight: '700', color: 'var(--primary)', marginBottom: '0.2rem', margin: 0 }}>Simple Explanation</h6>
+                                    <p style={{ color: 'var(--text-muted)', lineHeight: '1.4', margin: 0 }}>{test.simple_explanation}</p>
+                                  </div>
+
+                                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
+                                    {test.possible_causes && test.possible_causes.length > 0 && (
+                                      <div>
+                                        <h6 style={{ fontWeight: '700', color: 'var(--text-main)', marginBottom: '0.2, margin: 0' }}>Possible Causes</h6>
+                                        <ul style={{ paddingLeft: '1rem', margin: 0, color: 'var(--text-muted)' }}>
+                                          {test.possible_causes.map((c, i) => <li key={i}>{c}</li>)}
+                                        </ul>
+                                      </div>
+                                    )}
+                                    {test.common_symptoms && test.common_symptoms.length > 0 && (
+                                      <div>
+                                        <h6 style={{ fontWeight: '700', color: 'var(--text-main)', marginBottom: '0.2, margin: 0' }}>Common Symptoms</h6>
+                                        <ul style={{ paddingLeft: '1rem', margin: 0, color: 'var(--text-muted)' }}>
+                                          {test.common_symptoms.map((s, i) => <li key={i}>{s}</li>)}
+                                        </ul>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
+                                    {test.recommended_foods && test.recommended_foods.length > 0 && (
+                                      <div>
+                                        <h6 style={{ fontWeight: '700', color: '#10b981', marginBottom: '0.2, margin: 0' }}>Foods</h6>
+                                        <ul style={{ paddingLeft: '1rem', margin: 0, color: 'var(--text-muted)' }}>
+                                          {test.recommended_foods.map((f, i) => <li key={i}>{f}</li>)}
+                                        </ul>
+                                      </div>
+                                    )}
+                                    {test.lifestyle_changes && test.lifestyle_changes.length > 0 && (
+                                      <div>
+                                        <h6 style={{ fontWeight: '700', color: 'var(--secondary)', marginBottom: '0.2, margin: 0' }}>Lifestyle</h6>
+                                        <ul style={{ paddingLeft: '1rem', margin: 0, color: 'var(--text-muted)' }}>
+                                          {test.lifestyle_changes.map((l, i) => <li key={i}>{l}</li>)}
+                                        </ul>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  <div style={{ background: 'rgba(255,255,255,0.01)', padding: '0.5rem', borderRadius: '3px', fontSize: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                    {test.common_treatments && <div><strong>Treatments:</strong> <span style={{ color: 'var(--text-muted)' }}>{test.common_treatments}</span></div>}
+                                    {test.recovery_time && <div><strong>Recovery:</strong> <span style={{ color: 'var(--text-muted)' }}>{test.recovery_time}</span></div>}
+                                    {test.when_to_see_doctor && <div><strong>When to see doctor:</strong> <span style={{ color: '#f87171' }}>{test.when_to_see_doctor}</span></div>}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Positives vs Concerns */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
+                      <div className="glass-panel" style={{ padding: '1rem', borderColor: 'rgba(16, 185, 129, 0.15)' }}>
+                        <h5 style={{ fontWeight: '700', color: '#10b981', fontSize: '0.85rem', marginBottom: '0.5rem' }}>✨ Positive Findings</h5>
+                        <ul style={{ paddingLeft: '1rem', margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                          {card.positive_findings.map((item, idx) => <li key={idx}>{item}</li>)}
+                        </ul>
+                      </div>
+                      <div className="glass-panel" style={{ padding: '1rem', borderColor: 'rgba(239, 68, 68, 0.15)' }}>
+                        <h5 style={{ fontWeight: '700', color: 'var(--danger)', fontSize: '0.85rem', marginBottom: '0.5rem' }}>⚠️ Concerns</h5>
+                        <ul style={{ paddingLeft: '1rem', margin: 0, fontSize: '0.8rem', color: 'var(--text-main)' }}>
+                          {card.abnormal_findings.map((item, idx) => <li key={idx}>{item}</li>)}
+                        </ul>
+                      </div>
+                    </div>
+
+                    {/* Questions */}
+                    <div className="glass-panel" style={{ padding: '1rem' }}>
+                      <h5 style={{ fontWeight: '700', color: 'var(--primary)', fontSize: '0.85rem', marginBottom: '0.5rem' }}>❓ Suggested Questions to Ask Your Doctor</h5>
+                      <ol style={{ paddingLeft: '1rem', margin: 0, fontSize: '0.8rem', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                        {card.questions_for_doctor.map((q, idx) => <li key={idx}>{q}</li>)}
+                      </ol>
+                    </div>
+
+                    {/* Disclaimer */}
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-dark)', textAlign: 'center', lineHeight: '1.4' }}>
+                      {card.disclaimer}
+                    </div>
+                  </>
+                );
+              })() : (
                 <>
                   {/* Report Details */}
                   <div style={{ padding: '0.75rem 1rem', background: 'rgba(99, 102, 241, 0.03)', border: '1px solid var(--secondary-glow)', borderRadius: 'var(--radius-sm)' }}>

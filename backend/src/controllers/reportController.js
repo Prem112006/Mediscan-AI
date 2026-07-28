@@ -86,11 +86,13 @@ const analyzeReportFile = async (req, res) => {
       doctorNotes: analysisResult.doctorNotes || [],
       hasLabValues: analysisResult.hasLabValues || false,
       hasCriticalFindings: analysisResult.hasCriticalFindings || false,
+      patientExplanation: analysisResult.patientExplanation || {},
       reportConfidence: analysisResult.reportConfidence || 95,
       ocrConfidence: analysisResult.ocrConfidence || 95,
       classificationConfidence: analysisResult.classificationConfidence || 95,
       analysisConfidence: analysisResult.analysisConfidence || 95,
-      warnings: analysisResult.warnings || 'For educational use only'
+      warnings: analysisResult.warnings || 'For educational use only',
+      cardAnalysis: analysisResult.cardAnalysis || null
     });
 
     res.status(201).json({
